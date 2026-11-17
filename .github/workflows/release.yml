@@ -93,7 +93,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - uses: android-actions/setup-android@v3
+      - name: Siapkan Android SDK (sudah terpasang di runner)
+        run: |
+          sdkm=$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)
+          yes | "$sdkm" --licenses > /dev/null || true
+          "$sdkm" "platforms;android-35" "build-tools;35.0.0"
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Sinkronkan proyek Capacitor
