@@ -13,6 +13,9 @@ Dokumen ini jujur tentang **apa yang sudah ada, apa yang disederhanakan, dan apa
 | Argon2id/bcrypt | Argon2id (`@node-rs/argon2`) | Sesuai. |
 | QR: simpan hash saja | Simpan **HMAC hash** (untuk pencarian) **+ token terenkripsi AES-256-GCM** | Diperlukan agar PRD VEH-06 (unduh ulang QR) bisa dipenuhi. Kunci `ENCRYPTION_KEY` melindunginya; tanpa kunci token tidak terbaca dari dump DB. |
 
+## TURN
+Prioritas server ICE (`apps/api/src/lib/ice.ts`): Cloudflare Realtime TURN → coturn sendiri → STUN saja. Kredensial Cloudflare diminta server lewat REST (TTL 4 jam, diperbarui tiap 2 jam, permintaan bersamaan digabung) dan tidak pernah memuat token API ke frontend. Bila Cloudflare gagal, panggilan tetap dibuat dengan STUN. **Terverifikasi hanya dengan simulasi (tes otomatis)**; belum diuji terhadap akun Cloudflare sungguhan karena butuh TURN key Anda — lakukan uji panggilan lintas jaringan seluler setelah kunci diisi.
+
 ## Belum diimplementasikan / perlu keputusan
 - **Web Push** untuk panggilan saat tab tertutup: handler `push` ada di `public/sw.js`, tapi pengiriman VAPID di server belum dibuat. Saat ini panggilan berdering selama aplikasi/browser terbuka (UI menjelaskan batasan ini, PRD §13.2). Disarankan evaluasi aplikasi native/push-call pada fase lanjut.
 - **PSTN produksi**: hanya antarmuka adapter + provider `mock`. Provider nyata (Twilio/Telnyx/SIP lokal) wajib proof of concept (nomor DID Indonesia, masking, regulasi, biaya) sebelum diaktifkan. Verifikasi OTP nomor penelepon (`/calls/:id/pstn/verify`) belum dibuat; yang ada: consent, validasi E.164, allowlist awalan negara, batas harian per kendaraan, rate limit, verifikasi HMAC webhook.

@@ -6,7 +6,8 @@ import { AppError, ipHash, notFound, parse } from '../lib/http.ts';
 import { decrypt, encrypt, hmac, publicReference, uuid } from '../lib/security.ts';
 import { processImage } from '../lib/storage.ts';
 import { enqueue } from '../lib/notify.ts';
-import { createWebrtcCall, callerToken, iceServers, settingsFor, webrtcUnavailableReason, logEvent } from '../lib/calls.ts';
+import { createWebrtcCall, callerToken, settingsFor, webrtcUnavailableReason, logEvent } from '../lib/calls.ts';
+import { getIceServers } from '../lib/ice.ts';
 import { getTelephony, telephonyReady } from '../lib/telephony.ts';
 
 /** Cari kendaraan dari token QR. Mengembalikan status agar halaman bisa menampilkan "QR tidak aktif". */
@@ -137,7 +138,7 @@ export default async function publicRoutes(app: FastifyInstance) {
     const call = createWebrtcCall(v, `${ip}:${body.client_id ?? ''}`);
     return reply.status(201).send({
       call_id: call.id, reference: call.public_reference, signaling_token: callerToken(call.id),
-      ice_servers: iceServers(call.id), ring_timeout_seconds: s.ring_timeout_seconds,
+      ice_servers: await getIceServers(call.id), ring_timeout_seconds: s.ring_timeout_seconds,
     });
   });
 

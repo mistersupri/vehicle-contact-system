@@ -23,7 +23,7 @@ Admin sungguhan: `npm run seed:admin -- email@anda.com "KataSandiKuat123" "Nama"
 cp .env.example .env     # isi rahasia; APP_URL = domain HTTPS Anda
 docker compose up -d --build
 ```
-`npm run build && npm start` menyajikan web + API dari satu proses (restart server setelah rebuild). HTTPS wajib (mikrofon/WebRTC). Siapkan **TURN** (`infra/coturn`) agar panggilan jalan di jaringan seluler.
+`npm run build && npm start` menyajikan web + API dari satu proses (restart server setelah rebuild). HTTPS wajib (mikrofon/WebRTC). Siapkan **TURN** agar panggilan jalan di jaringan seluler. Tanpa IP publik: pakai **Cloudflare Realtime TURN** (isi `CLOUDFLARE_TURN_KEY_ID` dan `CLOUDFLARE_TURN_API_TOKEN`; kredensial sementara diambil server, cache 2 jam). Alternatif: coturn sendiri (`infra/coturn`).
 
 ## Pengujian
 ```bash

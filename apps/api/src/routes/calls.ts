@@ -3,10 +3,11 @@ import { z } from 'zod';
 import { all, audit, get, now, run } from '../db.ts';
 import { AppError, notFound, paging, parse, requireUser, userFromSessionToken, SESSION_COOKIE } from '../lib/http.ts';
 import { encrypt, uuid, verifyToken } from '../lib/security.ts';
-import { accept, cancelByCaller, end, finish, iceServers, ownedCall, pendingInvites, reject, settingsFor } from '../lib/calls.ts';
+import { accept, cancelByCaller, end, finish, ownedCall, pendingInvites, reject, settingsFor } from '../lib/calls.ts';
 import { ownerSockets, room, rooms, send, isOwnerOnline } from '../lib/hub.ts';
 import { telephonyReady } from '../lib/telephony.ts';
 import { LIMITS } from '../config.ts';
+import { getIceServers } from '../lib/ice.ts';
 
 const callRow = (c: any) => ({ id: c.id, reference: c.public_reference, plate_number: c.plate_number, vehicle_id: c.vehicle_id, call_type: c.call_type, status: c.status, started_at: c.started_at, answered_at: c.answered_at, ended_at: c.ended_at, duration_seconds: c.duration_seconds, end_reason: c.end_reason });
 const callsQ = `SELECT c.*, v.plate_number FROM calls c JOIN vehicles v ON v.id=c.vehicle_id WHERE c.owner_id=?`;
@@ -73,7 +74,7 @@ export default async function callRoutes(app: FastifyInstance) {
   });
 
   // ---- WebSocket signaling (hanya signaling; media lewat WebRTC langsung) ----
-  app.get('/call-signaling', { websocket: true }, (socket, req) => {
+  app.get('/call-signaling', { websocket: true }, async (socket, req) => {
     const q = req.query as any;
     // Pemilik: cookie sesi. Penelepon: token signaling berumur pendek.
     const owner = userFromSessionToken(req.cookies[SESSION_COOKIE]);
@@ -93,11 +94,12 @@ export default async function callRoutes(app: FastifyInstance) {
         send(socket, { type, reason: c?.end_reason ?? 'call_inactive', fallback: c?.status !== 'COMPLETED' }); socket.close(4410); return;
       }
       callerCallId = c.id; room(c.id).caller = socket;
-      send(socket, { type: 'call:ringing', call_id: c.id, ice_servers: iceServers(c.id) });
+      // jangan menahan pendaftaran listener (message/close) selama menunggu kredensial ICE
+      const cid = c.id; void getIceServers(cid).then((ice) => send(socket, { type: 'call:ringing', call_id: cid, ice_servers: ice }));
       if (c.status === 'ACCEPTED') send(socket, { type: 'call:accept', call_id: c.id });
     }
 
-    socket.on('message', (raw) => {
+    socket.on('message', async (raw) => {
       let m: any;
       try { m = JSON.parse(String(raw)); } catch { return; }
       try {
@@ -113,7 +115,7 @@ export default async function callRoutes(app: FastifyInstance) {
           case 'call:reject': if (owner) reject(callId, owner.id); break;
           case 'call:end': owner ? end(callId, owner.id) : cancelByCaller(callId); break;
           case 'call:offer': // penelepon -> pemilik
-            if (!owner && call.status === 'ACCEPTED') send(r?.owner, { type: 'call:offer', call_id: callId, sdp: m.sdp, ice_servers: iceServers(callId) }); break;
+            if (!owner && call.status === 'ACCEPTED') send(r?.owner, { type: 'call:offer', call_id: callId, sdp: m.sdp, ice_servers: await getIceServers(callId) }); break;
           case 'call:answer': // pemilik -> penelepon
             if (owner && call.status === 'ACCEPTED' && r?.owner === socket) send(r.caller, { type: 'call:answer', call_id: callId, sdp: m.sdp }); break;
           case 'call:ice-candidate':

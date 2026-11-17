@@ -4,6 +4,7 @@ import { all, audit, DEFAULT_SETTINGS, get, getSetting, now, run, setSetting, ty
 import { config } from '../config.ts';
 import { AppError, notFound, paging, parse, requireAdmin } from '../lib/http.ts';
 import { telegramConfigured, whatsappConfigured } from '../lib/providers.ts';
+import { cloudflareTurnConfigured, turnMode } from '../lib/ice.ts';
 import { telephonyReady } from '../lib/telephony.ts';
 import { changeStatus, STATUSES } from './reports.ts';
 import { finish } from '../lib/calls.ts';
@@ -119,7 +120,7 @@ export default async function adminRoutes(app: FastifyInstance) {
         { key: 'telegram', name: 'Telegram Bot', configured: telegramConfigured(), mode: telegramConfigured() ? 'live' : 'simulasi', stats: q("SUM(channel='TELEGRAM' AND status='SENT') sent, SUM(channel='TELEGRAM' AND status='FAILED') failed") },
         { key: 'whatsapp', name: 'WhatsApp Business', configured: whatsappConfigured(), mode: whatsappConfigured() ? 'live' : 'simulasi', stats: q("SUM(channel='WHATSAPP' AND status='SENT') sent, SUM(channel='WHATSAPP' AND status='FAILED') failed") },
         { key: 'telephony', name: 'Telephony / PSTN', configured: telephonyReady(), mode: config.telephonyProvider, stats: get<any>("SELECT SUM(call_type='PSTN') total, SUM(call_type='PSTN' AND status='FAILED') failed FROM calls") },
-        { key: 'turn', name: 'STUN/TURN', configured: !!config.turnUrl, mode: config.turnUrl ? 'TURN aktif' : 'hanya STUN', stats: {} },
+        { key: 'turn', name: 'STUN/TURN', configured: cloudflareTurnConfigured() || !!config.turnUrl, mode: turnMode(), stats: {} },
       ],
       queue: get<any>("SELECT SUM(status='PENDING') pending, SUM(status='RETRY_SCHEDULED') retrying, SUM(status='FAILED') failed FROM notification_deliveries"),
       failures: all("SELECT id,channel,last_error_code,attempts,updated_at FROM notification_deliveries WHERE status IN ('FAILED','RETRY_SCHEDULED') ORDER BY updated_at DESC LIMIT 20"),

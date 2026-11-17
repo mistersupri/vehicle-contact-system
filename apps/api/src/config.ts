@@ -28,6 +28,9 @@ export const config = {
   stunUrl: env.WEBRTC_STUN_URL ?? 'stun:stun.l.google.com:19302',
   turnUrl: env.WEBRTC_TURN_URL ?? '',
   turnSecret: env.WEBRTC_TURN_SECRET ?? '',
+  // Cloudflare Realtime TURN (dashboard Cloudflare → Realtime → TURN). Token API bersifat rahasia — hanya di server.
+  cfTurnKeyId: env.CLOUDFLARE_TURN_KEY_ID ?? '',
+  cfTurnApiToken: env.CLOUDFLARE_TURN_API_TOKEN ?? '',
 
   // Notifikasi
   telegramBotToken: env.TELEGRAM_BOT_TOKEN ?? '',

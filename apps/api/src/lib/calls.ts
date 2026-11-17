@@ -1,6 +1,5 @@
-import crypto from 'node:crypto';
 import { all, audit, get, getSetting, now, run, tx } from '../db.ts';
-import { config, LIMITS } from '../config.ts';
+import { LIMITS } from '../config.ts';
 import { AppError } from './http.ts';
 import { hmac, publicReference, signToken, uuid } from './security.ts';
 import { isOwnerOnline, room, rooms, send, sendToOwner } from './hub.ts';
@@ -46,17 +45,6 @@ export function webrtcUnavailableReason(userId: string): string | null {
 
 export function logEvent(callId: string, type: string, meta: Record<string, unknown> = {}) {
   run('INSERT INTO call_events(id,call_id,event_type,metadata,created_at) VALUES (?,?,?,?,?)', uuid(), callId, type, JSON.stringify(meta), now());
-}
-
-export function iceServers(callId: string) {
-  const servers: { urls: string | string[]; username?: string; credential?: string }[] = [{ urls: config.stunUrl }];
-  if (config.turnUrl && config.turnSecret) {
-    // Kredensial TURN sementara (coturn use-auth-secret): username = expiry:callId
-    const username = `${Math.floor(Date.now() / 1000) + 3600}:${callId}`;
-    const credential = crypto.createHmac('sha1', config.turnSecret).update(username).digest('base64');
-    servers.push({ urls: config.turnUrl.split(','), username, credential });
-  }
-  return servers;
 }
 
 const timers = new Map<string, NodeJS.Timeout>();
