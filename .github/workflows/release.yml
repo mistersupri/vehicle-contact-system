@@ -1,0 +1,174 @@
+name: Release
+
+# Setiap push ke main: uji → publikasikan image Docker ke GitHub Packages (GHCR)
+# → bangun APK Android → buat GitHub Release (APK terlampir).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  test:
+    name: Uji & build web
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Hitung versi (major.minor dari package.json + nomor run)
+        id: v
+        run: |
+          base=$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")
+          echo "version=${base}.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  package:
+    name: Publish package (GHCR)
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}   # otomatis huruf kecil
+          tags: |
+            type=raw,value=${{ needs.test.outputs.version }}
+            type=raw,value=latest
+            type=sha
+          labels: |
+            org.opencontainers.image.version=${{ needs.test.outputs.version }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  apk:
+    name: Build APK Android
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.test.outputs.version }}
+      # Alamat server HTTPS Anda (Settings → Secrets and variables → Actions → Variables → APP_URL).
+      # Kosong = aplikasi menampilkan layar "alamat server" saat pertama dibuka.
+      APP_URL: ${{ vars.APP_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Sinkronkan proyek Capacitor
+        working-directory: apps/mobile
+        run: |
+          npm ci
+          npx cap sync android
+
+      - name: Build APK
+        working-directory: apps/mobile/android
+        env:
+          KS_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          props="-PversionName=$VERSION -PversionCode=$GITHUB_RUN_NUMBER"
+          mkdir -p "$RUNNER_TEMP/out"
+          if [ -n "${KS_BASE64:-}" ] && [ -n "${KS_PASSWORD:-}" ] && [ -n "${KEY_ALIAS:-}" ]; then
+            echo "Keystore tersedia → build RELEASE bertanda tangan"
+            echo "$KS_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            ./gradlew --no-daemon assembleRelease $props
+            bt=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+            unsigned=$(ls app/build/outputs/apk/release/*.apk | head -1)
+            "$bt/zipalign" -f -p 4 "$unsigned" "$RUNNER_TEMP/aligned.apk"
+            export KS_PASSWORD
+            keypass=(--key-pass env:KS_PASSWORD)
+            if [ -n "${KEY_PASSWORD:-}" ]; then export KEY_PASSWORD; keypass=(--key-pass env:KEY_PASSWORD); fi
+            "$bt/apksigner" sign --ks "$RUNNER_TEMP/release.jks" --ks-key-alias "$KEY_ALIAS" \
+              --ks-pass env:KS_PASSWORD "${keypass[@]}" \
+              --out "$RUNNER_TEMP/out/vehicle-contact-$VERSION.apk" "$RUNNER_TEMP/aligned.apk"
+            "$bt/apksigner" verify "$RUNNER_TEMP/out/vehicle-contact-$VERSION.apk"
+          else
+            echo "::notice::Keystore belum diatur → APK ditandatangani debug (bisa dipasang manual, bukan untuk Play Store)"
+            ./gradlew --no-daemon assembleDebug $props
+            cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/out/vehicle-contact-$VERSION-debug.apk"
+          fi
+          echo "OUT_DIR=$RUNNER_TEMP/out" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: ${{ env.OUT_DIR }}/*.apk
+          if-no-files-found: error
+
+  release:
+    name: GitHub Release
+    needs: [test, package, apk]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.test.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk
+          path: apk
+      - name: Buat release
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          cat > notes.md <<NOTES
+          ## Vehicle Contact System v${VERSION}
+
+          **Server (Docker):**
+          \`\`\`
+          docker pull ${image}:${VERSION}
+          \`\`\`
+          **Android:** unduh APK di bawah. APK yang ditandatangani *debug* hanya untuk pemasangan manual/pengujian.
+
+          Commit: ${GITHUB_SHA}
+          NOTES
+          gh release create "v${VERSION}" apk/*.apk \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "v${VERSION}" --notes-file notes.md --generate-notes

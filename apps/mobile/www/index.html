@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Vehicle Contact</title>
+<style>
+  :root{--ink:#101011;--paper:#eeeeec;--mint:#cde8da}
+  *{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px;background:var(--paper);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
+  main{width:100%;max-width:420px}h1{font-size:30px;line-height:1.1;margin:0 0 8px;letter-spacing:-.02em}p{color:#5b5b57;margin:0 0 20px}
+  input,button{width:100%;font:inherit;border-radius:999px;padding:16px 20px;border:0}input{background:#fff;margin-bottom:12px}
+  input:focus{outline:2px solid var(--ink)}button{background:var(--ink);color:#fff;font-weight:700}#e{color:#b03a35;margin:8px 0 0;min-height:1.5em;font-size:14px}
+</style></head><body><main>
+  <h1>Hubungkan ke server</h1><p>Masukkan alamat server Vehicle Contact System Anda (HTTPS).</p>
+  <form id="f"><input id="u" type="url" inputmode="url" autocomplete="url" placeholder="https://contoh.com" required><button>Lanjutkan</button><p id="e" role="alert"></p></form>
+<script>
+  var K='vcs_server', u=document.getElementById('u'), e=document.getElementById('e');
+  try{var s=localStorage.getItem(K); if(s && !location.search.includes('ubah')) location.replace(s); else if(s) u.value=s;}catch(x){}
+  document.getElementById('f').onsubmit=function(ev){ev.preventDefault();var v=u.value.trim().replace(/\/$/,'');
+    if(!/^https:\/\//i.test(v)){e.textContent='Alamat harus diawali https://';return}
+    try{localStorage.setItem(K,v)}catch(x){} location.replace(v)};
+</script></main></body></html>

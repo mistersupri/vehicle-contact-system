@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Vehicle Contact</string>
+    <string name="title_activity_main">Vehicle Contact</string>
+    <string name="package_name">com.vehiclecontact.app</string>
+    <string name="custom_url_scheme">com.vehiclecontact.app</string>
+</resources>
