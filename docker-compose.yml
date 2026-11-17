@@ -13,7 +13,8 @@ services:
     ports: ["80:80", "443:443"]
     volumes: [ "./infra/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro", "/etc/letsencrypt:/etc/letsencrypt:ro" ]
     restart: unless-stopped
-  coturn:
+  coturn:                       # opsional, hanya bila punya IP publik: docker compose --profile coturn up -d
+    profiles: ["coturn"]
     image: coturn/coturn:4.6
     network_mode: host
     volumes: [ "./infra/coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro" ]

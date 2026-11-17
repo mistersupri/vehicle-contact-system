@@ -1,0 +1,54 @@
+# Vehicle Contact System — deploy di TrueNAS (tanpa IP publik).
+#   - app         : image dari GHCR (API + web + signaling WebSocket)
+#   - cloudflared : Cloudflare Tunnel → https://vecs.kukode.in (tanpa port dibuka di router)
+#   - TURN        : Cloudflare Realtime TURN (diatur lewat variabel; TIDAK perlu coturn)
+# Pakai:  cp .env.truenas.example .env  →  isi nilainya  →  docker compose -f docker-compose.truenas.yml up -d
+# Panduan lengkap: docs/TRUENAS.md
+name: vecs
+
+services:
+  app:
+    image: ${VECS_IMAGE:-ghcr.io/mistersupri/vehicle-contact-system:latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      DATA_DIR: /data
+      TRUST_PROXY: "1"                       # di belakang Cloudflare Tunnel: IP klien dari header proxy
+      APP_URL: ${APP_URL:-https://vecs.kukode.in}
+      SESSION_SECRET: ${SESSION_SECRET:?isi SESSION_SECRET di .env}
+      TOKEN_HASH_SECRET: ${TOKEN_HASH_SECRET:?isi TOKEN_HASH_SECRET di .env}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?isi ENCRYPTION_KEY di .env}
+      # Cloudflare Realtime TURN (dashboard Cloudflare → Realtime → TURN)
+      CLOUDFLARE_TURN_KEY_ID: ${CLOUDFLARE_TURN_KEY_ID:-}
+      CLOUDFLARE_TURN_API_TOKEN: ${CLOUDFLARE_TURN_API_TOKEN:-}
+      # Opsional
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-}
+      WHATSAPP_APP_SECRET: ${WHATSAPP_APP_SECRET:-}
+    volumes:
+      # Database SQLite + foto laporan. WAJIB persisten (dataset TrueNAS), contoh: /mnt/tank/apps/vecs
+      - ${DATA_PATH:-./data}:/data
+    expose:
+      - "4000"                               # hanya terlihat oleh cloudflared; tidak dipublikasikan ke host
+    # ports: ["4000:4000"]                   # buka hanya bila ingin akses LAN langsung (tanpa HTTPS → mikrofon tidak jalan)
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?isi TUNNEL_TOKEN di .env}
+    depends_on:
+      app:
+        condition: service_healthy
