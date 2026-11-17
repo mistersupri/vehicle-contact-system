@@ -1,0 +1,20 @@
+{
+  "name": "Vehicle Contact System",
+  "short_name": "VCS",
+  "description": "Hubungi pemilik kendaraan lewat QR Code tanpa membuka nomor pribadi.",
+  "lang": "id",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#EEEEEC",
+  "theme_color": "#101011",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Laporan", "url": "/app/reports" },
+    { "name": "Kendaraan", "url": "/app/vehicles" }
+  ]
+}

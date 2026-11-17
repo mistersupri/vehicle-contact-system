@@ -1,0 +1,48 @@
+@import '@fontsource-variable/plus-jakarta-sans';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { @apply bg-paper text-ink font-sans antialiased; letter-spacing: -0.005em; }
+  h1, h2, h3 { letter-spacing: -0.025em; }
+  button { @apply cursor-pointer; }
+  :focus-visible { outline: 2px solid #101011; outline-offset: 2px; border-radius: 12px; }
+  ::selection { background: #CDE8DA; }
+  input, textarea, select { font: inherit; }
+}
+
+@layer components {
+  .card { @apply bg-white rounded-3xl shadow-card; }
+  .card-dark { @apply bg-ink text-white rounded-3xl; }
+  .card-mint { @apply bg-mint rounded-3xl; }
+  .label { @apply block text-[13px] font-semibold text-ink mb-1.5; }
+  .input {
+    @apply w-full rounded-2xl bg-paper/70 border border-transparent px-4 py-3.5 text-[15px] placeholder:text-muted/70
+           transition focus:bg-white focus:border-ink focus:outline-none;
+  }
+  .input[aria-invalid='true'] { @apply border-coral bg-coral-soft/50; }
+  .eyebrow { @apply text-[13px] font-medium text-muted; }
+  .scroll-hide { scrollbar-width: none; }
+  .scroll-hide::-webkit-scrollbar { display: none; }
+}
+
+.safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5rem); }
+.safe-top { padding-top: max(env(safe-area-inset-top, 0px), 1.25rem); }
+
+/* Plat nomor */
+.plate {
+  font-variant-numeric: tabular-nums; letter-spacing: .06em;
+  background: #fff; color: #101011; border: 3px solid #101011; border-radius: 14px; box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 3px #101011;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+
+@media print {
+  body * { visibility: hidden !important; }
+  .print-area, .print-area * { visibility: visible !important; }
+  .print-area { position: fixed; inset: 0; display: grid; place-items: center; background: #fff; }
+}

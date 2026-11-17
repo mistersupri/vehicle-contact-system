@@ -112,6 +112,15 @@ export default async function publicRoutes(app: FastifyInstance) {
     return reply.status(201).send({ reference, status: PUBLIC_STATUS.NEW });
   });
 
+  // Pelaporan penyalahgunaan layanan oleh siapa saja (footer halaman publik)
+  app.post('/public/abuse-reports', publicLimit(5, '10 minutes'), async (req, reply) => {
+    const b = parse(z.object({ vehicle_token: z.string().max(200).optional(), message: z.string().trim().min(5, 'Jelaskan masalahnya').max(1000) }), req.body);
+    let vehicleId: string | null = null;
+    if (b.vehicle_token) { try { vehicleId = resolveToken(b.vehicle_token).vehicle.id; } catch { /* token tak dikenal: tetap catat */ } }
+    abuse(vehicleId, 'abuse.reported', ipHash(req), { message: b.message });
+    return reply.status(201).send({ ok: true });
+  });
+
   app.get('/public/reports/:reference', publicLimit(30), async (req) => {
     const r = get<any>('SELECT public_reference, status, created_at, updated_at FROM reports WHERE public_reference=?', String((req.params as any).reference).toUpperCase());
     if (!r) throw notFound('Laporan');

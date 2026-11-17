@@ -283,7 +283,8 @@ test('WebRTC signaling: invite, accept, relay offer/answer/ice, riwayat, satu pa
   assert.equal((await owner.post(`/calls/${c2.call_id}/reject`)).status, 200);
   assert.equal((await o.waitFor('call:cancelled', 2000, (m) => m.call_id === c2.call_id)).call_id, c2.call_id);
   const w2 = await wsOpen(`/call-signaling?token=${encodeURIComponent(c2.signaling_token)}`);
-  assert.equal((await w2.waitFor('call:error')).fallback, true); // sudah tidak aktif
+  const late = await w2.waitFor('call:reject'); // tersambung setelah ditolak: tetap mendapat alasan akurat
+  assert.equal(late.fallback, true);
 
   const c3 = (await new Client().post('/public/calls', { vehicle_token: token, client_id: 'client-ddd-4' })).body;
   await o.waitFor('call:invite');
@@ -297,6 +298,13 @@ test('WebRTC signaling: invite, accept, relay offer/answer/ice, riwayat, satu pa
   // token signaling palsu ditolak
   const bad = await wsOpen('/call-signaling?token=ngawur.ngawur');
   assert.equal((await bad.waitFor('call:error')).reason, 'unauthorized');
+});
+
+test('API: endpoint tak dikenal mengembalikan JSON 404 (bukan HTML), error format konsisten', async () => {
+  const r = await new Client().get('/tidak-ada');
+  assert.equal(r.status, 404); assert.equal(r.body.error.code, 'NOT_FOUND'); assert.ok(r.body.error.message);
+  const bad = await new Client().post('/auth/login', { email: 'bukan-email' });
+  assert.equal(bad.status, 400); assert.equal(bad.body.error.code, 'VALIDATION_ERROR'); assert.ok(bad.body.error.request_id);
 });
 
 test('PSTN: butuh consent, provider siap, nomor valid; webhook wajib tanda tangan', async () => {

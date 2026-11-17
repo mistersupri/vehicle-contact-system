@@ -97,7 +97,7 @@ export default async function adminRoutes(app: FastifyInstance) {
 
   app.get('/admin/abuse', async (req) => {
     const { limit, offset } = paging(req.query);
-    return { events: all('SELECT a.id,a.event_type,a.created_at,substr(a.source_hash,1,10) source,v.plate_number FROM abuse_events a LEFT JOIN vehicles v ON v.id=a.vehicle_id ORDER BY a.created_at DESC LIMIT ? OFFSET ?', limit, offset) };
+    return { events: all<any>('SELECT a.id,a.event_type,a.created_at,a.details,substr(a.source_hash,1,10) source,v.plate_number FROM abuse_events a LEFT JOIN vehicles v ON v.id=a.vehicle_id ORDER BY a.created_at DESC LIMIT ? OFFSET ?', limit, offset).map((e) => ({ ...e, details: JSON.parse(e.details) })) };
   });
 
   app.get('/admin/categories', async () => ({ categories: all('SELECT * FROM report_categories ORDER BY sort') }));

@@ -87,7 +87,11 @@ export default async function callRoutes(app: FastifyInstance) {
       send(socket, { type: 'hello', role: 'OWNER' });
     } else if (caller) {
       const c = get<any>('SELECT * FROM calls WHERE id=?', caller.call_id);
-      if (!c || !['RINGING', 'ACCEPTED'].includes(c.status)) { send(socket, { type: 'call:error', reason: 'call_inactive', fallback: true }); socket.close(4410); return; }
+      if (!c || !['RINGING', 'ACCEPTED'].includes(c.status)) {
+        // Penelepon bisa tersambung setelah panggilan sudah berakhir (mis. ditolak sangat cepat): sampaikan alasan yang akurat.
+        const type = c?.status === 'REJECTED' ? 'call:reject' : c?.status === 'MISSED' ? 'call:timeout' : c?.status === 'COMPLETED' ? 'call:end' : 'call:error';
+        send(socket, { type, reason: c?.end_reason ?? 'call_inactive', fallback: c?.status !== 'COMPLETED' }); socket.close(4410); return;
+      }
       callerCallId = c.id; room(c.id).caller = socket;
       send(socket, { type: 'call:ringing', call_id: c.id, ice_servers: iceServers(c.id) });
       if (c.status === 'ACCEPTED') send(socket, { type: 'call:accept', call_id: c.id });

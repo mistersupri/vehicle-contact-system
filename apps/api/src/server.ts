@@ -50,11 +50,6 @@ export async function buildApp() {
     req.log.error({ err: { message: err.message, stack: err.stack }, request_id: req.id });
     return reply.status(500).send({ error: { code: 'INTERNAL', message: 'Terjadi kesalahan pada server', request_id: req.id } });
   });
-  app.setNotFoundHandler((req, reply) => {
-    if (req.url.startsWith('/api/')) return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Endpoint tidak ditemukan', request_id: req.id } });
-    return reply.callNotFound as any;
-  });
-
   await app.register(async (api) => {
     api.get('/health', async () => { get('SELECT 1'); return { status: 'ok', time: new Date().toISOString() }; });
     await api.register(authRoutes);
@@ -67,14 +62,14 @@ export async function buildApp() {
     await api.register(webhookRoutes);
   }, { prefix: '/api/v1' });
 
-  // Produksi: layani hasil build frontend (SPA fallback)
+  // Hasil build frontend (SPA fallback) bila tersedia; satu-satunya handler "not found"
   const dist = resolve(import.meta.dirname, '../../web/dist');
-  if (existsSync(dist)) {
-    await app.register(fstatic, { root: dist, wildcard: false, setHeaders: (res, p) => { if (p.endsWith('sw.js') || p.endsWith('index.html')) res.setHeader('cache-control', 'no-cache'); } });
-    app.setNotFoundHandler((req, reply) => {
-      if (req.url.startsWith('/api/')) return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Endpoint tidak ditemukan', request_id: req.id } });
-      return reply.header('cache-control', 'no-cache').sendFile('index.html');
-    });
-  }
+  const hasWeb = existsSync(dist);
+  if (hasWeb) await app.register(fstatic, { root: dist, wildcard: false, setHeaders: (res, p) => { if (p.endsWith('sw.js') || p.endsWith('index.html')) res.setHeader('cache-control', 'no-cache'); } });
+  app.setNotFoundHandler((req, reply) => {
+    if (req.url.startsWith('/api/') || !hasWeb || req.method !== 'GET')
+      return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Endpoint tidak ditemukan', request_id: req.id } });
+    return reply.header('cache-control', 'no-cache').sendFile('index.html');
+  });
   return app;
 }
