@@ -1,0 +1,14 @@
+{
+	"appId": "com.vehiclecontact.app",
+	"appName": "Vehicle Contact",
+	"webDir": "www",
+	"android": {
+		"allowMixedContent": false
+	},
+	"server": {
+		"androidScheme": "https",
+		"allowNavigation": [
+			"*"
+		]
+	}
+}

@@ -3,6 +3,7 @@
 Hubungi pemilik kendaraan lewat **QR Code** — tanpa membuka nomor pribadi. Pengunjung memindai QR, lalu mengirim **laporan + foto** atau **menelepon lewat internet (WebRTC)** tanpa akun. Pemilik mengelola semuanya lewat dashboard (web/PWA) dan dikabari via WhatsApp/Telegram. Berdasarkan `Vehicle Contact System — PRD v1.0`.
 
 * **Web/PWA** (`apps/web`): React + Vite + TypeScript + Tailwind. Landing, halaman publik `/v/:token`, dashboard pemilik `/app`, panel admin `/admin`. Dapat dipasang (manifest + service worker).
+* **Android native** (`apps/android`): Kotlin + Compose, panggilan masuk layar penuh tanpa Firebase — lihat **[docs/ANDROID.md](docs/ANDROID.md)**.
 * **API** (`apps/api`): Node 22 + Fastify, REST `/api/v1`, signaling WebSocket `/api/v1/call-signaling`, worker notifikasi (outbox + retry).
 * Desain: monokrom hangat, kartu membulat besar, aksen mint & koral, tab pil — terinspirasi referensi yang Anda berikan.
 
@@ -30,7 +31,7 @@ docker compose up -d --build
 
 ## Pengujian
 ```bash
-npm test            # 9 tes integrasi API (auth, otorisasi, foto/EXIF, outbox+retry, WebRTC signaling, PSTN, MFA admin)
+npm test            # tes integrasi API (auth, otorisasi, foto/EXIF, outbox+retry, WebRTC signaling, PSTN, MFA admin)
 npm run typecheck
 ```
 Alur penuh juga telah diuji di browser nyata (Chromium, dua konteks: pemilik & pengunjung) termasuk panggilan WebRTC tersambung dan fallback pesan.
