@@ -67,6 +67,9 @@ Pindai QR → halaman kendaraan → pilih kategori → tulis pesan (≤1.000 kar
 ### 5.4 Panggilan WebRTC
 Pengunjung menekan *Panggil melalui internet* → izin mikrofon → server memeriksa (kendaraan aktif, pengaturan pemilik, ketersediaan, jam tenang, panggilan aktif, cooldown) → sesi dibuat dan pemilik diberi tahu lewat WebSocket → pemilik menerima/menolak → SDP/ICE dipertukarkan lewat signaling → audio langsung antar-perangkat (STUN/TURN) → durasi dan alasan berakhir tercatat. Tidak dijawab dalam batas dering → *missed call* + notifikasi ke kanal pemilik.
 
+### 5.4a Notifikasi Mendesak (tanpa panggilan, tanpa TURN)
+Pengunjung memilih *Notifikasi Mendesak* → (opsional) kategori + pesan ≤300 karakter → `POST /public/vehicles/:token/alerts`. Server menyimpan **laporan bertanda `urgent=1`**, mengantrekan notifikasi ke WhatsApp/Telegram/Email, dan — bila pemilik online — mengirim event WebSocket `alert:urgent`. Aplikasi pemilik menampilkan **layar penuh bergaya panggilan masuk** (web: overlay + bip singkat 30 dtk; Android: `AlertActivity` + notifikasi layar penuh) **tanpa audio dua arah dan tanpa WebRTC**, sehingga **tidak memakai Cloudflare TURN**. Pemilik menekan *Lihat Laporan* atau *Tutup*; mengubah status laporan mengirim `alert:dismiss`. Jam tenang menunda tampilan (laporan & kanal tetap terkirim); alert tertunda ditampilkan saat WebSocket pemilik tersambung dalam 2 menit. Dibatasi cooldown per kendaraan (`alert_cooldown_seconds`, default 120 dtk) dan dapat dimatikan pemilik (`allow_urgent_alerts`) — bila dimatikan pengunjung diarahkan ke laporan biasa (409 `ALERTS_DISABLED`).
+
 ### 5.5 Fallback panggilan
 Tidak dijawab, ditolak, sibuk, pemilik offline/jam tenang, koneksi gagal, izin mikrofon ditolak → UI menawarkan **Kirim pesan**. Tidak pernah beralih ke PSTN otomatis.
 
@@ -264,13 +267,13 @@ Basis `/api/v1`. Semua pengubah data wajib header CSRF (kecuali `/webhooks/*`).
 | Sistem | `GET /health` |
 
 ### Protokol signaling (`/api/v1/call-signaling`)
-Pemilik: cookie sesi. Penelepon: `?token=` bertanda tangan. Server→klien: `hello`, `call:invite`, `call:ringing`, `call:accept`, `call:reject`, `call:timeout`, `call:cancelled`, `call:taken`, `call:offer` (+ `ice_servers`), `call:answer`, `call:ice-candidate`, `call:end`, `call:error`. Klien→server: `call:accept`, `call:reject`, `call:end`, `call:offer`, `call:answer`, `call:ice-candidate`. Penelepon yang tersambung setelah panggilan berakhir tetap menerima alasan akurat.
+Pemilik: cookie sesi. Penelepon: `?token=` bertanda tangan. Server→klien: `hello`, `alert:urgent` / `alert:dismiss` (notifikasi mendesak, tanpa WebRTC), `call:invite` (+ `vehicle_name`), `call:ringing`, `call:accept`, `call:reject`, `call:timeout`, `call:cancelled`, `call:taken`, `call:offer` (+ `ice_servers`), `call:answer`, `call:ice-candidate`, `call:end`, `call:error`. Klien→server: `call:accept`, `call:reject`, `call:end`, `call:offer`, `call:answer`, `call:ice-candidate`. Penelepon yang tersambung setelah panggilan berakhir tetap menerima alasan akurat.
 
 ## 11. Desain UI/UX
 
-- **Bahasa visual:** monokrom hangat (`#101011`, `#EEEEEC`), mint (`#CDE8DA`) untuk sorotan/aksi utama, koral (`#E5645E`) untuk tolak/darurat; kartu sangat membulat; tab berbentuk pil; kartu gelap untuk elemen utama; font Plus Jakarta Sans — terinspirasi referensi desain aplikasi rapat yang diberikan.
+- **Bahasa visual (redesain v1.2):** hero gradien navy→biru (`#060C17`→`#0F2C5B` + sorot `#2B7FE8`), kartu putih radius 20 px, tombol utama gradien biru, aksen hijau (WebRTC), amber (telepon biasa), merah (mendesak/tolak); font **Space Grotesk** (judul) + **Inter** (isi); navigasi bawah 5 tab (Beranda, Kendaraan, Laporan, Panggilan, Akun) di mobile dan sidebar navy di desktop; laporan memakai master–detail di desktop. Mengikuti set desain 18 layar yang diberikan pengguna.
 - **Mobile-first** untuk halaman publik; dashboard responsif (sidebar desktop, navigasi bawah mobile).
-- **Inventaris layar:** 86 tangkapan layar (desktop+mobile) mencakup landing, autentikasi, halaman publik (aktif, offline, tidak aktif, nonaktif, tidak dikenal), formulir laporan (kosong, validasi, terisi, sukses), panggilan (memanggil, terhubung, selesai, ditolak), seluruh dashboard pemilik dan panel admin — lihat [screenshots/README.md](screenshots/README.md).
+- **Inventaris layar:** tangkapan layar halaman utama setelah redesain (landing, masuk, beranda, kendaraan, laporan, panggilan, notifikasi, akun, halaman publik, form laporan, Notifikasi Mendesak) — lihat [screenshots/README.md](screenshots/README.md).
 - **PWA:** manifest (`start_url` `/app`), service worker men-cache shell (API tidak pernah di-cache); handler `push` ada tetapi pengiriman VAPID belum.
 
 ## 12. Aplikasi Android native

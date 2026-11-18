@@ -5,10 +5,11 @@ Hubungi pemilik kendaraan lewat **QR Code** — tanpa membuka nomor pribadi. Pen
 * **Web/PWA** (`apps/web`): React + Vite + TypeScript + Tailwind. Landing, halaman publik `/v/:token`, dashboard pemilik `/app`, panel admin `/admin`. Dapat dipasang (manifest + service worker).
 * **Android native** (`apps/android`): Kotlin + Compose, panggilan masuk layar penuh tanpa Firebase — lihat **[docs/ANDROID.md](docs/ANDROID.md)**.
 * **API** (`apps/api`): Node 22 + Fastify, REST `/api/v1`, signaling WebSocket `/api/v1/call-signaling`, worker notifikasi (outbox + retry).
-* Desain: monokrom hangat, kartu membulat besar, aksen mint & koral, tab pil — terinspirasi referensi yang Anda berikan.
+* **Notifikasi Mendesak:** selain panggilan, pengunjung dapat mengirim pemberitahuan **layar penuh bergaya panggilan tanpa audio/WebRTC** — tidak memakai Cloudflare TURN.
+* Desain (v1.2): hero gradien navy→biru, kartu putih membulat, Space Grotesk + Inter, navigasi bawah 5 tab — mengikuti set desain yang diberikan.
 
 ## Tampilan
-86 tangkapan layar semua halaman dan kondisinya (desktop & mobile): **[docs/screenshots](docs/screenshots/README.md)**.
+Tangkapan layar halaman utama setelah redesain (desktop & mobile): **[docs/screenshots](docs/screenshots/README.md)**.
 
 ## Menjalankan (pengembangan)
 Butuh Node ≥ 22.13.
