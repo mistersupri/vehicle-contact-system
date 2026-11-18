@@ -62,10 +62,11 @@ private fun Stat(label: String, value: Int, sub: String, bg: Color, fg: Color, m
 /** Laporan baru memakai kartu mint (seperti web); lainnya putih. */
 @Composable
 fun ReportRow(r: Report, onClick: (String) -> Unit) {
-    Panel(color = if (r.status == "NEW") Mint else Color.White, modifier = Modifier.fillMaxWidth().clickable { onClick(r.id) }) {
+    Panel(color = if (r.urgent == 1 && r.status == "NEW") CoralSoft else if (r.status == "NEW") BrandSoft else Color.White, modifier = Modifier.fillMaxWidth().clickable { onClick(r.id) }) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 Text(Labels.category[r.category] ?: r.category, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
+                if (r.urgent == 1) { Pill("Mendesak", Coral, Color.White); Spacer(Modifier.width(6.dp)) }
                 StatusPill(r.status, Labels.reportStatus[r.status] ?: r.status)
             }
             Spacer(Modifier.height(6.dp)); PlateBadge(r.plate_number)

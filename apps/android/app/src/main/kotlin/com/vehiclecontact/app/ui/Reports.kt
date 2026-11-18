@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.background
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -39,7 +40,7 @@ fun ReportsScreen(onReport: (String) -> Unit) {
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 12.dp)) {
             items(FILTERS) { (code, label) ->
                 FilterChip(selected = filter == code, onClick = { filter = code }, label = { Text(label) },
-                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Ink, selectedLabelColor = Color.White))
+                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Brand, selectedLabelColor = Color.White))
             }
         }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 16.dp)) {
@@ -75,7 +76,7 @@ fun ReportDetailScreen(id: String) {
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         loader.Content { r ->
-            Panel(color = Ink, modifier = Modifier.fillMaxWidth()) {
+            Box(Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).background(HeroBrush)) {
                 Column(Modifier.padding(20.dp)) {
                     Row { StatusPill(r.status, Labels.reportStatus[r.status] ?: r.status); Spacer(Modifier.weight(1f)); Text(r.reference, color = Color.White.copy(alpha = .5f), fontSize = 11.sp) }
                     Spacer(Modifier.height(12.dp))

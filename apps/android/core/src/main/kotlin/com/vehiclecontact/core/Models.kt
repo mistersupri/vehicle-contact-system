@@ -25,12 +25,13 @@ val VcsJson = Json { ignoreUnknownKeys = true; explicitNulls = false; coerceInpu
     val brand: String? = null, val model: String? = null, val color: String? = null,
     val owner_display_name: String, val status: String, val created_at: String = "",
     val qr: Qr? = null, val report_count: Int = 0, val new_report_count: Int = 0,
+    val name: String? = null, val call_count: Int = 0,
 )
 @Serializable data class VehiclesResponse(val vehicles: List<Vehicle>)
 @Serializable data class VehicleResponse(val vehicle: Vehicle)
 @Serializable data class VehicleInput(
     val plate_number: String, val vehicle_type: String,
-    val brand: String? = null, val model: String? = null, val color: String? = null, val owner_display_name: String,
+    val brand: String? = null, val model: String? = null, val color: String? = null, val owner_display_name: String, val name: String? = null,
 )
 
 @Serializable data class Report(
@@ -38,6 +39,7 @@ val VcsJson = Json { ignoreUnknownKeys = true; explicitNulls = false; coerceInpu
     val category: String, val message: String, val status: String,
     val reporter_name: String? = null, val created_at: String, val updated_at: String = "",
     val resolved_at: String? = null, val photo_count: Int = 0,
+    val urgent: Int = 0, val vehicle_name: String? = null,
 )
 @Serializable data class ReportsResponse(val reports: List<Report>, val total: Int = 0)
 @Serializable data class Attachment(val id: String, val mime_type: String = "", val width: Int? = null, val height: Int? = null)
@@ -45,6 +47,7 @@ val VcsJson = Json { ignoreUnknownKeys = true; explicitNulls = false; coerceInpu
     val id: String, val reference: String, val plate_number: String, val category: String, val message: String, val status: String,
     val reporter_name: String? = null, val reporter_phone: String? = null, val created_at: String,
     val attachments: List<Attachment> = emptyList(), val source_blocked: Boolean = false,
+    val urgent: Int = 0, val vehicle_name: String? = null,
 )
 @Serializable data class ReportDetailResponse(val report: ReportDetail)
 @Serializable data class StatusChange(val status: String, val note: String? = null)
@@ -70,16 +73,17 @@ val VcsJson = Json { ignoreUnknownKeys = true; explicitNulls = false; coerceInpu
 @Serializable data class CallSettings(
     val webrtc_enabled: Boolean = true, val pstn_enabled: Boolean = false, val call_availability: String = "ONLINE",
     val max_call_duration_seconds: Int = 600, val ring_timeout_seconds: Int = 45, val allow_anonymous_webrtc: Boolean = true,
-    val quiet_hours: QuietHours = QuietHours(), val owner_phone_set: Boolean = false, val pstn_provider_ready: Boolean = false,
+    val quiet_hours: QuietHours = QuietHours(), val allow_urgent_alerts: Boolean = true, val owner_phone_set: Boolean = false, val pstn_provider_ready: Boolean = false,
 )
 @Serializable data class CallSettingsResponse(val settings: CallSettings)
 @Serializable data class CallSettingsInput(
     val webrtc_enabled: Boolean, val call_availability: String, val ring_timeout_seconds: Int,
     val max_call_duration_seconds: Int, val allow_anonymous_webrtc: Boolean, val quiet_hours: QuietHours,
+    val allow_urgent_alerts: Boolean = true,
 )
 
 @Serializable data class Channel(val id: String, val channel: String, val destination_masked: String = "", val verified: Boolean = false, val enabled: Boolean = true)
-@Serializable data class Providers(val telegram_live: Boolean = false, val whatsapp_live: Boolean = false, val telegram_bot_username: String? = null)
+@Serializable data class Providers(val telegram_live: Boolean = false, val whatsapp_live: Boolean = false, val telegram_bot_username: String? = null, val email_live: Boolean = false)
 @Serializable data class ChannelsResponse(val channels: List<Channel> = emptyList(), val telegram_link_pending: Boolean = false, val providers: Providers = Providers())
 @Serializable data class EnabledInput(val enabled: Boolean)
 @Serializable data class TestInput(val channel: String)
@@ -95,8 +99,10 @@ val VcsJson = Json { ignoreUnknownKeys = true; explicitNulls = false; coerceInpu
 
 /** Label Bahasa Indonesia yang sama dengan web. */
 object Labels {
-    val reportStatus = mapOf("NEW" to "Baru", "READ" to "Dibaca", "IN_PROGRESS" to "Diproses", "RESOLVED" to "Selesai", "ARCHIVED" to "Arsip")
+    val reportStatus = mapOf("NEW" to "Baru", "READ" to "Dibaca", "IN_PROGRESS" to "Proses", "RESOLVED" to "Selesai", "ARCHIVED" to "Arsip")
     val category = mapOf("PARKING" to "Menghalangi parkir", "ACCESS" to "Menghalangi akses", "LIGHT" to "Lampu menyala", "EMERGENCY" to "Darurat", "DAMAGE" to "Dugaan kerusakan", "OTHER" to "Lainnya")
+    /** Label pendek untuk grid kategori & chip. */
+    val categoryShort = mapOf("PARKING" to "Parkir", "ACCESS" to "Akses", "LIGHT" to "Lampu", "EMERGENCY" to "Darurat", "DAMAGE" to "Kerusakan", "OTHER" to "Lainnya")
     val callStatus = mapOf("RINGING" to "Berdering", "ACCEPTED" to "Berlangsung", "COMPLETED" to "Selesai", "MISSED" to "Tak terjawab", "REJECTED" to "Ditolak", "FAILED" to "Gagal")
     val vehicleStatus = mapOf("ACTIVE" to "Aktif", "INACTIVE" to "Nonaktif", "SUSPENDED" to "Ditangguhkan")
 }

@@ -30,6 +30,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vehiclecontact.app.ui.Coral
 import com.vehiclecontact.app.ui.Ink
+import com.vehiclecontact.app.ui.HeroBrush
+import com.vehiclecontact.app.ui.Green
 import com.vehiclecontact.app.ui.Mint
 import com.vehiclecontact.app.ui.PlateBadge
 import com.vehiclecontact.app.ui.VecsTheme
@@ -72,11 +74,11 @@ class CallActivity : ComponentActivity() {
                     if (state is CallState.Idle) finish()
                 }
 
-                Box(Modifier.fillMaxSize().background(Ink).systemBarsPadding(), contentAlignment = Alignment.Center) {
+                Box(Modifier.fillMaxSize().background(HeroBrush).systemBarsPadding(), contentAlignment = Alignment.Center) {
                     when (val s = state) {
-                        is CallState.Ringing -> IncomingUi(s.plate, onAccept = { accept() }, onReject = { engine.reject() })
-                        is CallState.Connecting -> InCallUi(s.plate, "Menyambungkan audio…", muted, speaker, engine::toggleMute, engine::toggleSpeaker, engine::hangup)
-                        is CallState.Connected -> InCallUi(s.plate, "%d:%02d".format(seconds / 60, seconds % 60), muted, speaker, engine::toggleMute, engine::toggleSpeaker, engine::hangup)
+                        is CallState.Ringing -> IncomingUi(s.vehicleName, s.plate, onAccept = { accept() }, onReject = { engine.reject() })
+                        is CallState.Connecting -> InCallUi(s.vehicleName, s.plate, "Menyambungkan audio…", muted, speaker, engine::toggleMute, engine::toggleSpeaker, engine::hangup)
+                        is CallState.Connected -> InCallUi(s.vehicleName, s.plate, "%d:%02d".format(seconds / 60, seconds % 60), muted, speaker, engine::toggleMute, engine::toggleSpeaker, engine::hangup)
                         is CallState.Ended -> EndedUi(s.message)
                         CallState.Idle -> {}
                     }
@@ -103,12 +105,12 @@ private fun RoundButton(color: Color, label: String, content: String, onClick: (
 }
 
 @Composable
-private fun IncomingUi(plate: String, onAccept: () -> Unit, onReject: () -> Unit) {
+private fun IncomingUi(name: String?, plate: String, onAccept: () -> Unit, onReject: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-            Text("Panggilan masuk dari QR kendaraan", color = Color.White.copy(alpha = .6f), fontSize = 14.sp)
+            Text(if (name != null) "Panggilan masuk · $name" else "Panggilan masuk dari QR kendaraan", color = Color.White.copy(alpha = .6f), fontSize = 14.sp)
             Spacer(Modifier.height(32.dp))
-            Box(Modifier.size(120.dp).clip(CircleShape).background(Mint), contentAlignment = Alignment.Center) { Text("📞", fontSize = 48.sp) }
+            Box(Modifier.size(120.dp).clip(CircleShape).background(Color.White.copy(alpha = .16f)), contentAlignment = Alignment.Center) { Text("📞", fontSize = 48.sp) }
             Spacer(Modifier.height(32.dp))
             PlateBadge(plate, large = true)
             Spacer(Modifier.height(20.dp))
@@ -116,18 +118,19 @@ private fun IncomingUi(plate: String, onAccept: () -> Unit, onReject: () -> Unit
         }
         Row(Modifier.fillMaxWidth().padding(bottom = 32.dp, start = 24.dp, end = 24.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             RoundButton(Coral, "Tolak", "✕", onReject)
-            RoundButton(Color.White, "Terima", "✓", onAccept, contentColor = Ink)
+            RoundButton(Green, "Terima", "✓", onAccept)
         }
     }
 }
 
 @Composable
-private fun InCallUi(plate: String, status: String, muted: Boolean, speaker: Boolean, onMute: () -> Unit, onSpeaker: () -> Unit, onEnd: () -> Unit) {
+private fun InCallUi(name: String?, plate: String, status: String, muted: Boolean, speaker: Boolean, onMute: () -> Unit, onSpeaker: () -> Unit, onEnd: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+            if (name != null) { Text(name, color = Color.White.copy(alpha = .8f), fontSize = 15.sp); Spacer(Modifier.height(8.dp)) }
             PlateBadge(plate)
             Spacer(Modifier.height(40.dp))
-            Box(Modifier.size(128.dp).clip(CircleShape).background(Mint), contentAlignment = Alignment.Center) { Text("P", fontSize = 48.sp, fontWeight = FontWeight.Bold, color = Ink) }
+            Box(Modifier.size(128.dp).clip(CircleShape).background(Color.White.copy(alpha = .16f)), contentAlignment = Alignment.Center) { Text("P", fontSize = 48.sp, fontWeight = FontWeight.Bold, color = Color.White) }
             Spacer(Modifier.height(28.dp))
             Text("Pengunjung", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.SemiBold)
             Text(status, color = Color.White.copy(alpha = .7f), fontSize = 18.sp)

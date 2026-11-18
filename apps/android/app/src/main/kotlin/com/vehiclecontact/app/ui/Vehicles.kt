@@ -115,7 +115,7 @@ private fun VehicleDialog(vehicle: Vehicle?, onDismiss: () -> Unit, onSaved: (cr
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 FormField("Pelat nomor", plate, { plate = it.uppercase() })
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
-                    TYPES.forEach { t -> FilterChip(selected = type == t, onClick = { type = t }, label = { Text(t) }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Ink, selectedLabelColor = Color.White)) }
+                    TYPES.forEach { t -> FilterChip(selected = type == t, onClick = { type = t }, label = { Text(t) }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Brand, selectedLabelColor = Color.White)) }
                 }
                 FormField("Merek", brand, { brand = it }); FormField("Model", model, { model = it }); FormField("Warna", color, { color = it })
                 FormField("Nama yang tampil ke publik", display, { display = it }, hint = "Cukup nama panggilan, mis. “Budi S.”. Jangan isi nomor telepon.")

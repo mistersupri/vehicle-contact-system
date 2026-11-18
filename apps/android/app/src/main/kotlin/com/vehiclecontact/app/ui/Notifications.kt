@@ -20,7 +20,7 @@ import com.vehiclecontact.core.Channel
 import kotlinx.coroutines.launch
 
 private val DSTATUS = mapOf("PENDING" to "Menunggu", "PROCESSING" to "Diproses", "SENT" to "Terkirim", "FAILED" to "Gagal", "RETRY_SCHEDULED" to "Dicoba ulang")
-private val KIND = mapOf("report.created" to "Laporan baru", "call.missed" to "Panggilan tak terjawab", "test" to "Tes")
+private val KIND = mapOf("report.created" to "Laporan baru", "call.missed" to "Panggilan tak terjawab", "report.urgent" to "Notifikasi mendesak", "test" to "Tes")
 
 @Composable
 fun NotificationsScreen() {
@@ -63,6 +63,14 @@ fun NotificationsScreen() {
                 } else { Text("Terhubung ✓", color = MintDeep); SmallButton("Putuskan", { act { app.api.telegramDisconnect() } }) }
             }
 
+            val em = c.channels.firstOrNull { it.channel == "EMAIL" }
+            ChannelCard("Email", em, !c.providers.email_live, onToggle = { v -> act { app.api.setEmailChannel(v) } }, onTest = { act("Pesan tes dikirim.") { app.api.testChannel("EMAIL") } }) {
+                if (em == null) {
+                    Text("Notifikasi dikirim ke alamat email akun Anda.", color = Muted, fontSize = 14.sp)
+                    Spacer(Modifier.height(8.dp)); SmallButton("Aktifkan Email", { act { app.api.setEmailChannel(true) } }, dark = true)
+                } else Text("Aktif ✓", color = MintDeep, fontSize = 14.sp)
+            }
+
             ChannelCard("WhatsApp", wa, !c.providers.whatsapp_live, onToggle = { v -> act { app.api.setChannelEnabled(wa!!.id, v) } }, onTest = { act("Pesan tes dikirim.") { app.api.testChannel("WHATSAPP") } }) {
                 if (wa == null) {
                     if (!waStep) {
@@ -89,7 +97,7 @@ fun NotificationsScreen() {
                         Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text((KIND[d.kind] ?: d.kind) + (d.plate?.let { " · $it" } ?: ""), fontWeight = FontWeight.SemiBold)
-                                Text((if (d.channel == "TELEGRAM") "Telegram" else "WhatsApp") + " · " + timeAgo(d.created_at) + (if (d.attempts > 1) " · ${d.attempts} percobaan" else ""), color = Muted, fontSize = 12.sp)
+                                Text((when (d.channel) { "TELEGRAM" -> "Telegram"; "EMAIL" -> "Email"; else -> "WhatsApp" }) + " · " + timeAgo(d.created_at) + (if (d.attempts > 1) " · ${d.attempts} percobaan" else ""), color = Muted, fontSize = 12.sp)
                             }
                             StatusPill(d.status, DSTATUS[d.status] ?: d.status)
                         }
@@ -107,7 +115,7 @@ private fun ChannelCard(title: String, channel: Channel?, simulated: Boolean, on
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) { Text(title, fontWeight = FontWeight.Bold, fontSize = 18.sp); Text(channel?.destination_masked ?: "Belum terhubung", color = Muted, fontSize = 13.sp) }
-                if (channel != null) Switch(checked = channel.enabled, onCheckedChange = onToggle, colors = SwitchDefaults.colors(checkedTrackColor = Ink))
+                if (channel != null) Switch(checked = channel.enabled, onCheckedChange = onToggle, colors = SwitchDefaults.colors(checkedTrackColor = Brand))
             }
             if (simulated) { Spacer(Modifier.height(8.dp)); Pill("Mode simulasi — belum ada kredensial provider", Amber, AmberDeep) }
             Spacer(Modifier.height(12.dp))

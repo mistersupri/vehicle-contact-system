@@ -49,6 +49,7 @@ class CallEngine(private val app: VecsApp) {
     private val _speaker = MutableStateFlow(false)
     private val _seconds = MutableStateFlow(0)
     private val _events = MutableSharedFlow<EngineEvent>(extraBufferCapacity = 16)
+    private val _alert = MutableStateFlow<SignalEvent.Alert?>(null)
 
     val state: StateFlow<CallState> get() = _state
     val connection: StateFlow<Conn> get() = _conn
@@ -56,6 +57,8 @@ class CallEngine(private val app: VecsApp) {
     val speaker: StateFlow<Boolean> get() = _speaker
     val seconds: StateFlow<Int> get() = _seconds
     val events: SharedFlow<EngineEvent> get() = _events
+    /** Notifikasi mendesak yang sedang tampil (tanpa audio/WebRTC). */
+    val alert: StateFlow<SignalEvent.Alert?> get() = _alert
 
     @Volatile private var running = false
     private var loop: Job? = null
@@ -138,6 +141,7 @@ class CallEngine(private val app: VecsApp) {
     fun reject() = dispatch(CallInput.UserReject)
     fun hangup() = dispatch(CallInput.UserHangup)
     fun dismissEnded() = dispatch(CallInput.Dismissed)
+    fun dismissAlert() { _alert.value = null }
 
     fun toggleMute() { val m = !_muted.value; _muted.value = m; peer?.setMuted(m) }
     fun toggleSpeaker() {
@@ -162,6 +166,8 @@ class CallEngine(private val app: VecsApp) {
             is CallEffect.AddRemoteIce -> peer?.addRemoteIce(e.candidate)
             is CallEffect.ClosePeer -> closePeer()
             is CallEffect.NotifyMissed -> _events.tryEmit(EngineEvent.Missed(e.plate))
+            is CallEffect.ShowAlert -> _alert.value = e.alert
+            is CallEffect.DismissAlert -> { if (_alert.value?.reportId == e.reportId) _alert.value = null }
             is CallEffect.ShowIncoming, is CallEffect.DismissIncoming -> {} // notifikasi mengikuti state di CallService
         }
     }

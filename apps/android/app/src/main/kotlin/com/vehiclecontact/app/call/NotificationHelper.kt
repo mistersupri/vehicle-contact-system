@@ -18,9 +18,11 @@ object NotificationHelper {
     const val CH_LISTEN = "listen"
     const val CH_CALLS = "calls"
     const val CH_MISSED = "missed"
+    const val CH_ALERT = "alert"
     const val ID_LISTEN = 1
     const val ID_CALL = 2
     const val ID_MISSED = 3
+    const val ID_ALERT = 4
 
     fun createChannels(ctx: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -36,6 +38,12 @@ object NotificationHelper {
                 RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE),
                 AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build(),
             )
+        })
+        // Bukan panggilan: nada notifikasi singkat + getar, tanpa dering berulang
+        nm.createNotificationChannel(NotificationChannel(CH_ALERT, "Notifikasi mendesak", NotificationManager.IMPORTANCE_HIGH).apply {
+            description = "Pemberitahuan layar penuh dari pemindai QR (bukan panggilan, tanpa audio)"
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            enableVibration(true); vibrationPattern = longArrayOf(0, 400, 200, 400)
         })
         nm.createNotificationChannel(NotificationChannel(CH_MISSED, "Panggilan tak terjawab", NotificationManager.IMPORTANCE_DEFAULT))
     }
@@ -63,7 +71,7 @@ object NotificationHelper {
         val n = NotificationCompat.Builder(ctx, CH_CALLS)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Panggilan masuk")
-            .setContentText("QR kendaraan ${r.plate} menghubungi Anda")
+            .setContentText((r.vehicleName?.let { "$it · " } ?: "") + "QR kendaraan ${r.plate} menghubungi Anda")
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -76,6 +84,24 @@ object NotificationHelper {
             .build()
         n.flags = n.flags or Notification.FLAG_INSISTENT // nada dering berulang sampai dijawab/ditutup
         return n
+    }
+
+    /** Notifikasi mendesak: layar penuh di atas layar kunci. */
+    fun urgent(ctx: Context, a: com.vehiclecontact.core.SignalEvent.Alert): Notification {
+        val full = PendingIntent.getActivity(ctx, 20, AlertActivity.intent(ctx), immutable())
+        val title = (a.vehicleName?.let { "$it · " } ?: "") + a.plate
+        return NotificationCompat.Builder(ctx, CH_ALERT)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("Notifikasi mendesak · $title")
+            .setContentText(a.message?.takeIf { it.isNotBlank() } ?: a.categoryLabel)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(a.message?.takeIf { it.isNotBlank() } ?: a.categoryLabel))
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setAutoCancel(true)
+            .setFullScreenIntent(full, true)
+            .setContentIntent(full)
+            .build()
     }
 
     fun inCall(ctx: Context, plate: String): Notification =

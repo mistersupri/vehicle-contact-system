@@ -17,7 +17,10 @@ data class IceCandidateInfo(val candidate: String, val sdpMid: String?, val sdpM
 /** Pesan dari server signaling (`/api/v1/call-signaling`). */
 sealed interface SignalEvent {
     data object Hello : SignalEvent
-    data class Invite(val callId: String, val reference: String, val plate: String, val ringTimeoutSec: Int) : SignalEvent
+    data class Invite(val callId: String, val reference: String, val plate: String, val ringTimeoutSec: Int, val vehicleName: String? = null) : SignalEvent
+    /** Notifikasi mendesak: layar penuh bergaya panggilan, tanpa audio/WebRTC. */
+    data class Alert(val reportId: String, val reference: String, val plate: String, val vehicleName: String?, val category: String, val categoryLabel: String, val message: String?) : SignalEvent
+    data class AlertDismiss(val reportId: String) : SignalEvent
     data class Cancelled(val callId: String, val reason: String?) : SignalEvent
     data class Taken(val callId: String) : SignalEvent
     data class Offer(val callId: String, val sdp: String, val iceServers: List<IceServerInfo>) : SignalEvent
@@ -35,7 +38,9 @@ fun parseSignal(text: String): SignalEvent? {
     val id = o.str("call_id") ?: ""
     return when (type) {
         "hello" -> SignalEvent.Hello
-        "call:invite" -> SignalEvent.Invite(id, o.str("reference") ?: "", o.str("plate") ?: "", (o["ring_timeout"] as? JsonPrimitive)?.intOrNull ?: 45)
+        "call:invite" -> SignalEvent.Invite(id, o.str("reference") ?: "", o.str("plate") ?: "", (o["ring_timeout"] as? JsonPrimitive)?.intOrNull ?: 45, o.str("vehicle_name"))
+        "alert:urgent" -> SignalEvent.Alert(o.str("report_id") ?: return null, o.str("reference") ?: "", o.str("plate") ?: "", o.str("vehicle_name"), o.str("category") ?: "OTHER", o.str("category_label") ?: "", o.str("message"))
+        "alert:dismiss" -> SignalEvent.AlertDismiss(o.str("report_id") ?: return null)
         "call:cancelled" -> SignalEvent.Cancelled(id, o.str("reason"))
         "call:taken" -> SignalEvent.Taken(id)
         "call:offer" -> {

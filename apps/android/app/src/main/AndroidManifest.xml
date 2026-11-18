@@ -50,6 +50,16 @@
             android:excludeFromRecents="true"
             android:taskAffinity="com.vehiclecontact.app.call" />
 
+        <!-- Notifikasi mendesak: layar penuh bergaya panggilan, tanpa audio -->
+        <activity
+            android:name=".call.AlertActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity="com.vehiclecontact.app.alert" />
+
         <service
             android:name=".call.CallService"
             android:exported="false"
