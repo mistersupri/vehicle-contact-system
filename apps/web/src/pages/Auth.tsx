@@ -99,17 +99,19 @@ const regSchema = z.object({
 });
 export function Register() {
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<z.infer<typeof regSchema>>({ resolver: zodResolver(regSchema) });
-  const [error, setError] = useState(''); const [done, setDone] = useState<{ email: string; dev?: string } | null>(null);
+  const [error, setError] = useState(''); const [done, setDone] = useState<{ email: string; dev?: string; sent: boolean } | null>(null);
   if (done) return (
-    <Shell title="Periksa email Anda" sub={`Kami mengirim tautan verifikasi ke ${done.email}.`}>
-      <div className="card-mint flex items-center gap-4 p-6"><MailCheck className="h-10 w-10 shrink-0" /><p className="text-sm font-medium">Klik tautan di email untuk mengaktifkan akun. Tautan berlaku 24 jam.</p></div>
+    <Shell title={done.sent ? 'Periksa email Anda' : 'Akun dibuat'} sub={done.sent ? `Kami mengirim tautan verifikasi ke ${done.email}.` : `Akun untuk ${done.email} sudah dibuat.`}>
+      {done.sent
+        ? <div className="card-mint flex items-center gap-4 p-6"><MailCheck className="h-10 w-10 shrink-0" /><p className="text-sm font-medium">Klik tautan di email untuk mengaktifkan akun. Tautan berlaku 24 jam. Tidak ada? Periksa folder spam.</p></div>
+        : <Notice tone="amber">Server belum dapat mengirim email verifikasi. Hubungi administrator untuk mengaktifkan akun Anda.</Notice>}
       {done.dev && <p className="mt-4 rounded-2xl bg-amber-soft px-4 py-3 text-sm text-amber-deep">Mode pengembangan (SMTP belum diatur): <a className="font-bold underline" href={new URL(done.dev).pathname + new URL(done.dev).search}>klik di sini untuk verifikasi</a></p>}
       <Link to="/login" className="mt-6 inline-block text-sm font-semibold underline-offset-4 hover:underline">Ke halaman masuk</Link>
     </Shell>
   );
   return (
     <Shell title="Buat akun" sub="Gratis. Kelola banyak kendaraan dalam satu akun.">
-      <form onSubmit={handleSubmit(async (v) => { setError(''); try { const r = await api<any>('/auth/register', { body: { name: v.name, email: v.email, password: v.password } }); setDone({ email: v.email, dev: r.dev_verify_url }); } catch (e) { setError(errMsg(e)); } })} className="space-y-4" noValidate>
+      <form onSubmit={handleSubmit(async (v) => { setError(''); try { const r = await api<any>('/auth/register', { body: { name: v.name, email: v.email, password: v.password } }); setDone({ email: v.email, dev: r.dev_verify_url, sent: r.email_sent !== false }); } catch (e) { setError(errMsg(e)); } })} className="space-y-4" noValidate>
         <Field label="Nama lengkap" error={errors.name?.message}><Input autoComplete="name" invalid={!!errors.name} {...register('name')} /></Field>
         <Field label="Email" error={errors.email?.message}><Input type="email" autoComplete="email" invalid={!!errors.email} {...register('email')} /></Field>
         <Field label="Kata sandi" error={errors.password?.message} hint="Minimal 10 karakter, kombinasi huruf dan angka."><Input type="password" autoComplete="new-password" invalid={!!errors.password} {...register('password')} /></Field>

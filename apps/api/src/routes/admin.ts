@@ -5,6 +5,7 @@ import { config } from '../config.ts';
 import { AppError, notFound, paging, parse, requireAdmin } from '../lib/http.ts';
 import { telegramConfigured, whatsappConfigured } from '../lib/providers.ts';
 import { cloudflareTurnConfigured, turnMode } from '../lib/ice.ts';
+import { mailConfigured } from '../lib/mail.ts';
 import { telephonyReady } from '../lib/telephony.ts';
 import { changeStatus, STATUSES } from './reports.ts';
 import { finish } from '../lib/calls.ts';
@@ -43,7 +44,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     if (id === admin.id) throw new AppError(400, 'SELF_ACTION', 'Tidak dapat mengubah status akun sendiri');
     const u = get<any>('SELECT id FROM users WHERE id=? AND deleted_at IS NULL', id);
     if (!u) throw notFound('Pengguna');
-    run('UPDATE users SET status=?, updated_at=? WHERE id=?', status, now(), id);
+    run('UPDATE users SET status=?, email_verified_at=CASE WHEN ?=\'ACTIVE\' THEN COALESCE(email_verified_at, ?) ELSE email_verified_at END, updated_at=? WHERE id=?', status, status, now(), now(), id);
     if (status === 'SUSPENDED') run('UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL', now(), id);
     audit(admin.id, 'admin.user_status', 'user', id, { status });
     return { ok: true };
@@ -120,6 +121,7 @@ export default async function adminRoutes(app: FastifyInstance) {
         { key: 'telegram', name: 'Telegram Bot', configured: telegramConfigured(), mode: telegramConfigured() ? 'live' : 'simulasi', stats: q("SUM(channel='TELEGRAM' AND status='SENT') sent, SUM(channel='TELEGRAM' AND status='FAILED') failed") },
         { key: 'whatsapp', name: 'WhatsApp Business', configured: whatsappConfigured(), mode: whatsappConfigured() ? 'live' : 'simulasi', stats: q("SUM(channel='WHATSAPP' AND status='SENT') sent, SUM(channel='WHATSAPP' AND status='FAILED') failed") },
         { key: 'telephony', name: 'Telephony / PSTN', configured: telephonyReady(), mode: config.telephonyProvider, stats: get<any>("SELECT SUM(call_type='PSTN') total, SUM(call_type='PSTN' AND status='FAILED') failed FROM calls") },
+        { key: 'smtp', name: 'Email (SMTP)', configured: mailConfigured(), mode: mailConfigured() ? `${config.smtpHost}:${config.smtpPort}` : 'tidak terkirim', stats: get<any>("SELECT SUM(status='PENDING') menunggu_verifikasi FROM users WHERE deleted_at IS NULL") },
         { key: 'turn', name: 'STUN/TURN', configured: cloudflareTurnConfigured() || !!config.turnUrl, mode: turnMode(), stats: {} },
       ],
       queue: get<any>("SELECT SUM(status='PENDING') pending, SUM(status='RETRY_SCHEDULED') retrying, SUM(status='FAILED') failed FROM notification_deliveries"),

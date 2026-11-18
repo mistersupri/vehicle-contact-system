@@ -88,7 +88,7 @@ function UsersPage() {
       <ErrorNote>{err}</ErrorNote>
       <Table rows={q.data?.users ?? []} cols={[
         { h: 'Pengguna', c: (u: any) => <><p className="font-semibold">{u.name}</p><p className="text-xs text-muted">{u.email}</p></> }, { h: 'Kendaraan', c: (u: any) => u.vehicle_count }, { h: 'Status', c: (u: any) => <StatusBadge status={u.status} label={L[u.status] ?? u.status} /> }, { h: 'Daftar', c: (u: any) => fmtDateTime(u.created_at) },
-        { h: '', cls: 'text-right', c: (u: any) => u.status !== 'PENDING' && <Button size="sm" variant={u.status === 'ACTIVE' ? 'light' : 'dark'} loading={m.isPending && m.variables?.id === u.id} onClick={() => m.mutate({ id: u.id, status: u.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' })}>{u.status === 'ACTIVE' ? 'Tangguhkan' : 'Aktifkan'}</Button> },
+        { h: '', cls: 'text-right', c: (u: any) => <Button size="sm" variant={u.status === 'ACTIVE' ? 'light' : 'dark'} loading={m.isPending && m.variables?.id === u.id} onClick={() => m.mutate({ id: u.id, status: u.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' })}>{u.status === 'ACTIVE' ? 'Tangguhkan' : u.status === 'PENDING' ? 'Verifikasi manual' : 'Aktifkan'}</Button> },
       ]} /></div>
   );
 }

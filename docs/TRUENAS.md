@@ -14,6 +14,18 @@ Arsitektur: **Cloudflare Tunnel** membawa trafik HTTPS/WebSocket ke container `a
    `echo $TOKEN | docker login ghcr.io -u mistersupri --password-stdin` — atau jadikan paket *public* di GitHub → Packages.
 4. Jalankan: `docker compose -f docker-compose.truenas.yml up -d` (atau tempel isinya di *Apps → Install via YAML*).
 
+## 2b. Email (SMTP)
+Verifikasi email dan reset kata sandi dikirim lewat SMTP. Isi di `.env`:
+```
+SMTP_HOST=smtp.contoh.com
+SMTP_PORT=587          # 587 = STARTTLS · 465 = TLS langsung (set SMTP_SECURE=true)
+SMTP_USER=...
+SMTP_PASSWORD=...
+MAIL_FROM=Vehicle Contact <no-reply@kukode.in>
+```
+Pilihan penyedia: SMTP dari hosting domain Anda, Brevo, Mailjet, Resend, atau Gmail dengan *App Password* — cek batas kirim gratisnya. Agar email tidak masuk spam, atur SPF/DKIM untuk domain pengirim.
+Cek: *Admin → Integrasi → Email (SMTP)* harus *Terkonfigurasi*; daftarkan akun uji dan periksa kotak masuk. Kegagalan kirim muncul di log: `docker compose logs app | grep "\[mail\]"`.
+
 ## 3. Buat akun admin
 ```bash
 docker compose -f docker-compose.truenas.yml exec app npm run seed:admin -- email@anda.com "KataSandiKuat123" "Nama"
@@ -28,5 +40,5 @@ Login di `https://vecs.kukode.in/admin/login`; pindai QR MFA saat login pertama.
 ## Catatan
 - **Backup:** cukup salin folder `DATA_PATH` (database `vcs.db` + `uploads/`), idealnya lewat snapshot dataset TrueNAS. Simpan juga nilai `ENCRYPTION_KEY`.
 - **Pembaruan:** `docker compose -f docker-compose.truenas.yml pull && docker compose -f docker-compose.truenas.yml up -d`.
-- **Email:** SMTP belum diimplementasikan; di production tautan verifikasi/reset hanya masuk log (`docker compose logs app`). Registrasi pemilik baru butuh itu — lihat `docs/DECISIONS.md`.
+- **Email:** isi `SMTP_*` dan `MAIL_FROM` di `.env` (lihat bagian *Email* di atas). Tanpa SMTP, pendaftar baru tidak menerima email verifikasi; admin bisa memverifikasi manual di *Admin → Pengguna → Verifikasi manual*.
 - Satu instance saja (SQLite + rate limit di memori). Jangan menjalankan lebih dari satu replika.

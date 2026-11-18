@@ -45,6 +45,14 @@ export const config = {
   telephonyProvider: env.TELEPHONY_PROVIDER ?? 'none',
   telephonyWebhookSecret: env.TELEPHONY_WEBHOOK_SECRET ?? 'dev-telephony-secret',
 
+  // Email (SMTP). Kosong = email tidak terkirim (mode dev: ditulis ke log).
+  smtpHost: env.SMTP_HOST ?? '',
+  smtpPort: num('SMTP_PORT', 587),
+  smtpSecure: env.SMTP_SECURE ? env.SMTP_SECURE === 'true' : num('SMTP_PORT', 587) === 465, // true = TLS langsung (465); false = STARTTLS (587)
+  smtpUser: env.SMTP_USER ?? '',
+  smtpPassword: env.SMTP_PASSWORD ?? '',
+  mailFrom: env.MAIL_FROM || ((env.SMTP_USER ?? '').includes('@') ? `Vehicle Contact <${env.SMTP_USER}>` : ''),
+
   // Retry notifikasi (detik): segera, 1 menit, 5 menit, 15 menit
   retryScheduleSeconds: (env.RETRY_SCHEDULE ?? '0,60,300,900').split(',').map(Number),
   workerIntervalMs: num('WORKER_INTERVAL_MS', 2000),

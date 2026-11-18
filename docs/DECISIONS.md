@@ -20,7 +20,7 @@ Prioritas server ICE (`apps/api/src/lib/ice.ts`): Cloudflare Realtime TURN → c
 - **Web Push** untuk panggilan saat tab tertutup: handler `push` ada di `public/sw.js`, tapi pengiriman VAPID di server belum dibuat. Saat ini panggilan berdering selama aplikasi/browser terbuka (UI menjelaskan batasan ini, PRD §13.2). Disarankan evaluasi aplikasi native/push-call pada fase lanjut.
 - **PSTN produksi**: hanya antarmuka adapter + provider `mock`. Provider nyata (Twilio/Telnyx/SIP lokal) wajib proof of concept (nomor DID Indonesia, masking, regulasi, biaya) sebelum diaktifkan. Verifikasi OTP nomor penelepon (`/calls/:id/pstn/verify`) belum dibuat; yang ada: consent, validasi E.164, allowlist awalan negara, batas harian per kendaraan, rate limit, verifikasi HMAC webhook.
 - **CAPTCHA/Turnstile adaptif**, **malware scanning** upload, **fingerprint perangkat**: belum. Anti-spam saat ini: rate limit per kendaraan/IP/sumber, cooldown, blokir sumber, `abuse_events`.
-- **Email**: belum ada SMTP; tautan verifikasi/reset ditulis ke log (mode dev juga dikembalikan di respons API; **tidak di production**).
+- **Email**: SMTP via `nodemailer` (`SMTP_*`, `MAIL_FROM`). Tanpa konfigurasi: dev menulis ke log; production memberi peringatan saat start dan admin dapat memverifikasi pendaftar secara manual. Belum ada antrean/retry email (kegagalan dicatat ke log; pengguna dapat meminta kirim ulang).
 - **WhatsApp**: kirim pesan teks via Cloud API. Di luar jendela 24 jam Meta mewajibkan *template* yang disetujui — belum dibuat. Telegram: webhook `/start <token>` (set `setWebhook` dengan `secret_token`).
 - Kebijakan privasi di `/privasi` adalah **draf operasional**, bukan teks hukum.
 - Rekaman audit/retensi otomatis dan backup terjadwal: belum (lihat PRD §14.5).

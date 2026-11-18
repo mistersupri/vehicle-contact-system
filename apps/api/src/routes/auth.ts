@@ -5,7 +5,7 @@ import { all, audit, get, now, run, tx } from '../db.ts';
 import { config, isProd } from '../config.ts';
 import { AppError, ipHash, parse, requireUser, SESSION_COOKIE, userFromSessionToken } from '../lib/http.ts';
 import { decrypt, encrypt, hashPassword, hmac, isoPlus, newTotpSecret, randomToken, uuid, verifyPassword, verifyTotp } from '../lib/security.ts';
-import { appLink, devLinks, sendMail } from '../lib/mail.ts';
+import { appLink, devLinks, mailConfigured, sendMail } from '../lib/mail.ts';
 
 const registerSchema = z.object({
   name: z.string().trim().min(2, 'Nama minimal 2 karakter').max(150),
@@ -49,11 +49,11 @@ export default async function authRoutes(app: FastifyInstance) {
       tx(() => run('INSERT INTO users(id,name,email,password_hash,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?)', id, body.name, body.email, hash, 'PENDING', now(), now()));
       const token = issueEmailToken('email_verifications', id, 86400);
       const link = appLink(`/verify-email?token=${token}`);
-      sendMail(body.email, 'Verifikasi email Vehicle Contact System', `Halo ${body.name}, buka tautan berikut untuk memverifikasi email Anda:\n${link}`);
+      void sendMail(body.email, 'Verifikasi email Vehicle Contact System', `Halo ${body.name}, terima kasih telah mendaftar. Verifikasi email Anda untuk mengaktifkan akun. Tautan berlaku 24 jam.`, { label: 'Verifikasi email', url: link });
       audit(id, 'user.registered', 'user', id);
-      return reply.status(201).send({ ok: true, ...(devLinks ? { dev_verify_url: link } : {}) });
+      return reply.status(201).send({ ok: true, email_sent: mailConfigured(), ...(devLinks ? { dev_verify_url: link } : {}) });
     }
-    return reply.status(201).send({ ok: true });
+    return reply.status(201).send({ ok: true, email_sent: mailConfigured() });
   });
 
   app.post('/auth/verify-email', strict, async (req) => {
@@ -73,8 +73,8 @@ export default async function authRoutes(app: FastifyInstance) {
     const u = get<any>("SELECT * FROM users WHERE email=? AND status='PENDING'", email);
     if (u) {
       const link = appLink(`/verify-email?token=${issueEmailToken('email_verifications', u.id, 86400)}`);
-      sendMail(email, 'Verifikasi email Vehicle Contact System', link);
-      return { ok: true, ...(devLinks ? { dev_verify_url: link } : {}) };
+      void sendMail(email, 'Verifikasi email Vehicle Contact System', 'Verifikasi email Anda untuk mengaktifkan akun. Tautan berlaku 24 jam.', { label: 'Verifikasi email', url: link });
+      return { ok: true, email_sent: mailConfigured(), ...(devLinks ? { dev_verify_url: link } : {}) };
     }
     return { ok: true };
   });
@@ -163,7 +163,7 @@ export default async function authRoutes(app: FastifyInstance) {
     const u = get<any>("SELECT * FROM users WHERE email=? AND status='ACTIVE'", email);
     if (u) {
       const link = appLink(`/reset-password?token=${issueEmailToken('password_resets', u.id, 3600)}`);
-      sendMail(email, 'Reset kata sandi Vehicle Contact System', `Buka tautan berikut (berlaku 1 jam):\n${link}`);
+      void sendMail(email, 'Reset kata sandi Vehicle Contact System', 'Kami menerima permintaan untuk mengatur ulang kata sandi akun Anda. Tautan berlaku 1 jam. Abaikan email ini bila bukan Anda yang meminta.', { label: 'Atur ulang kata sandi', url: link });
       audit(u.id, 'auth.reset_requested', 'user', u.id);
       return { ok: true, ...(devLinks ? { dev_reset_url: link } : {}) };
     }
