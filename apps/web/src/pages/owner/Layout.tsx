@@ -1,105 +1,99 @@
-import { useEffect } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Bell, Car, FileText, LayoutGrid, LogOut, Mic, MicOff, PhoneCall, PhoneOff, Settings, ShieldCheck, X, Check } from 'lucide-react';
+import { Bell, Car, Inbox, LayoutDashboard, LogOut, Phone, Search, Settings, ShieldCheck, User, X } from 'lucide-react';
 import { useAuth } from '../../lib/auth';
 import { api } from '../../lib/api';
 import { OwnerCallProvider, useOwnerCall } from '../../lib/ownerCall';
-import { cx, fmtDuration, initials } from '../../lib/utils';
+import { cx } from '../../lib/utils';
 import { Logo } from '../../components/Logo';
-import { Plate } from '../../components/ui';
+import { ActiveUi, IncomingUi, UrgentUi } from '../../components/CallUi';
+import { Avatar } from '../../components/ui';
 
 const NAV = [
-  { to: '/app', end: true, label: 'Ringkasan', icon: LayoutGrid },
+  { to: '/app', end: true, label: 'Beranda', icon: LayoutDashboard },
   { to: '/app/vehicles', label: 'Kendaraan', icon: Car },
-  { to: '/app/reports', label: 'Laporan', icon: FileText },
-  { to: '/app/calls', label: 'Panggilan', icon: PhoneCall },
+  { to: '/app/reports', label: 'Laporan', icon: Inbox },
+  { to: '/app/calls', label: 'Panggilan', icon: Phone },
   { to: '/app/notifications', label: 'Notifikasi', icon: Bell },
-  { to: '/app/settings', label: 'Pengaturan', icon: Settings },
 ];
+const TABS = [...NAV.slice(0, 4), { to: '/app/settings', label: 'Akun', icon: User }];
+const TITLES: [string, string][] = [['/app/vehicles', 'Kendaraan'], ['/app/reports', 'Laporan'], ['/app/calls', 'Panggilan'], ['/app/notifications', 'Notifikasi'], ['/app/settings', 'Pengaturan'], ['/app', 'Dashboard']];
 
-function CallOverlay() {
-  const c = useOwnerCall();
-  if (c.active) return (
-    <div className="fixed inset-0 z-[70] flex flex-col bg-ink text-white" role="dialog" aria-modal="true" aria-label="Panggilan berlangsung">
-      <div className="flex items-center justify-between px-5 pt-5 safe-top"><Plate value={c.active.plate} className="!text-sm !px-3 !py-1 !border-2" /><span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold">Panggilan internet</span></div>
-      <div className="flex flex-1 flex-col items-center justify-center text-center">
-        <span className={cx('grid h-32 w-32 place-items-center rounded-full text-4xl font-bold', c.active.state === 'connected' ? 'bg-mint text-ink' : 'bg-white/15')}>P</span>
-        <h2 className="mt-8 text-3xl font-semibold">Pengunjung</h2>
-        <p className="mt-2 text-lg text-white/70" aria-live="polite">{c.active.state === 'connected' ? <span className="font-mono tabular-nums">{fmtDuration(c.seconds)}</span> : 'Menyambungkan audio…'}</p>
-      </div>
-      <div className="flex items-center justify-center gap-5 pb-10 safe-bottom">
-        <button onClick={c.toggleMute} aria-pressed={c.muted} aria-label={c.muted ? 'Aktifkan mikrofon' : 'Matikan mikrofon'} className={cx('grid h-16 w-16 place-items-center rounded-full', c.muted ? 'bg-white text-ink' : 'bg-white/15')}>{c.muted ? <MicOff /> : <Mic />}</button>
-        <button onClick={c.hangup} aria-label="Akhiri panggilan" className="grid h-20 w-20 place-items-center rounded-full bg-coral shadow-float"><PhoneOff className="h-8 w-8" /></button>
-      </div>
-    </div>
-  );
-  if (c.incoming) return (
-    <div className="fixed inset-0 z-[70] flex flex-col bg-ink text-white" role="alertdialog" aria-modal="true" aria-label="Panggilan masuk" aria-live="assertive">
-      <div className="flex-1 flex-col items-center justify-center text-center flex">
-        <p className="text-sm font-semibold text-white/60">Panggilan masuk dari QR kendaraan</p>
-        <div className="relative my-10 grid h-40 w-40 place-items-center"><span className="absolute inset-0 animate-ring rounded-full bg-mint/40" /><span className="absolute inset-0 animate-ring rounded-full bg-mint/40 [animation-delay:.9s]" /><span className="relative grid h-28 w-28 place-items-center rounded-full bg-mint text-ink"><PhoneCall className="h-12 w-12" /></span></div>
-        <Plate value={c.incoming.plate} className="text-3xl" />
-        <p className="mt-5 max-w-xs text-white/60">Seseorang di dekat kendaraan Anda ingin berbicara. Nomor Anda tidak terlihat olehnya.</p>
-      </div>
-      <div className="mx-auto flex w-full max-w-xs justify-between px-8 pb-14 safe-bottom">
-        <div className="text-center"><button onClick={c.reject} aria-label="Tolak panggilan" className="grid h-20 w-20 place-items-center rounded-full bg-coral"><X className="h-9 w-9" /></button><p className="mt-2 text-sm font-semibold">Tolak</p></div>
-        <div className="text-center"><button onClick={() => void c.accept()} aria-label="Terima panggilan" className="grid h-20 w-20 place-items-center rounded-full bg-white text-ink"><Check className="h-9 w-9" /></button><p className="mt-2 text-sm font-semibold">Terima</p></div>
-      </div>
-    </div>
-  );
-  if (c.notice) return <div role="status" className="fixed inset-x-4 top-4 z-[70] mx-auto flex max-w-md items-center justify-between gap-3 rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white shadow-float">{c.notice}<button onClick={c.dismissNotice} aria-label="Tutup" className="shrink-0 rounded-full bg-white/15 p-1"><X className="h-4 w-4" /></button></div>;
+function greeting() { const h = new Date().getHours(); return h < 11 ? 'Selamat pagi' : h < 15 ? 'Selamat siang' : h < 19 ? 'Selamat sore' : 'Selamat malam'; }
+
+function Overlays() {
+  const c = useOwnerCall(); const nav = useNavigate();
+  const [ringSec, setRingSec] = useState(0);
+  useEffect(() => { if (!c.incoming) return; setRingSec(0); const t = setInterval(() => setRingSec((s) => s + 1), 1000); return () => clearInterval(t); }, [c.incoming]);
+
+  if (c.active) return <ActiveUi title="Penelepon Anonim" name={c.active.vehicle_name} plate={c.active.plate} status={c.active.state === 'connected' ? 'Terhubung' : 'Menyambung'} seconds={c.seconds} connected={c.active.state === 'connected'} muted={c.muted} onMute={c.toggleMute} onEnd={c.hangup} />;
+  if (c.incoming) return <IncomingUi name={c.incoming.vehicle_name} plate={c.incoming.plate} seconds={ringSec} onAccept={() => void c.accept()} onReject={c.reject} />;
+  if (c.alert) return <UrgentUi name={c.alert.vehicle_name} plate={c.alert.plate} label={c.alert.category_label} message={c.alert.message}
+    onDismiss={c.dismissAlert} onOpen={() => { const id = c.alert!.report_id; c.dismissAlert(); nav(`/app/reports/${id}`); }} />;
+  if (c.notice) return <div role="status" className="fixed inset-x-4 top-4 z-[70] mx-auto flex max-w-md items-center justify-between gap-3 rounded-2xl bg-navy-900 px-5 py-3 text-sm font-semibold text-white shadow-float">{c.notice}<button onClick={c.dismissNotice} aria-label="Tutup" className="shrink-0 rounded-full bg-white/15 p-1"><X className="h-4 w-4" /></button></div>;
   return null;
 }
 
 function Shell() {
-  const { user, logout } = useAuth(); const nav = useNavigate(); const { socket } = useOwnerCall();
+  const { user, logout } = useAuth(); const nav = useNavigate(); const loc = useLocation(); const { socket } = useOwnerCall();
   const sum = useQuery({ queryKey: ['summary'], queryFn: () => api<any>('/dashboard/summary'), refetchInterval: 30_000 });
   const newCount = sum.data?.reports?.NEW ?? 0; const missed = sum.data?.calls?.missed ?? 0;
+  const [q, setQ] = useState('');
   useEffect(() => { document.title = newCount ? `(${newCount}) Vehicle Contact` : 'Vehicle Contact System'; return () => { document.title = 'Vehicle Contact System'; }; }, [newCount]);
   const badge = (to: string) => (to === '/app/reports' ? newCount : 0);
   const out = async () => { await logout(); nav('/', { replace: true }); };
-  const dot = { online: 'bg-mint-deep', connecting: 'bg-amber-deep', offline: 'bg-coral' }[socket];
+  const title = TITLES.find(([p]) => loc.pathname === p || (p !== '/app' && loc.pathname.startsWith(p)))?.[1] ?? 'Dashboard';
+  const isHome = loc.pathname === '/app';
+  const dot = { online: 'bg-[#13B77D]', connecting: 'bg-amber', offline: 'bg-coral' }[socket];
 
   return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[272px_1fr]">
-      <aside className="sticky top-0 hidden h-dvh flex-col p-3 lg:flex">
-        <div className="card-dark flex h-full flex-col p-5">
-          <Logo to="/app" light />
-          <nav className="mt-8 flex-1 space-y-1" aria-label="Navigasi utama">
-            {NAV.map((n) => (
-              <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => cx('flex items-center gap-3 rounded-full px-4 py-3 text-[15px] font-semibold transition', isActive ? 'bg-white text-ink' : 'text-white/65 hover:bg-white/10 hover:text-white')}>
-                <n.icon className="h-[18px] w-[18px]" />{n.label}
-                {badge(n.to) > 0 && <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-coral px-1.5 text-[11px] font-bold text-white">{badge(n.to)}</span>}
-                {n.to === '/app/calls' && missed > 0 && <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-white/20 px-1.5 text-[11px] font-bold text-white">{missed}</span>}
-              </NavLink>))}
-          </nav>
-          {user?.is_admin && <NavLink to="/admin" className="mb-3 flex items-center gap-2 rounded-full bg-white/10 px-4 py-2.5 text-sm font-semibold"><ShieldCheck className="h-4 w-4" />Panel admin</NavLink>}
-          <div className="rounded-3xl bg-white/10 p-3">
-            <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-full bg-mint text-sm font-bold text-ink">{initials(user?.name ?? '?')}</span><div className="min-w-0 flex-1 leading-tight"><p className="truncate text-sm font-bold">{user?.name}</p><p className="mt-0.5 flex items-center gap-1.5 text-xs text-white/55"><span className={cx('h-1.5 w-1.5 rounded-full', dot)} />{socket === 'online' ? 'Siap menerima panggilan' : socket === 'connecting' ? 'Menyambung…' : 'Offline'}</p></div></div>
-            <button onClick={out} className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-white/10 py-2 text-sm font-semibold hover:bg-white/20"><LogOut className="h-4 w-4" />Keluar</button>
+    <div className="min-h-dvh lg:grid lg:grid-cols-[260px_1fr]">
+      {/* Sidebar desktop */}
+      <aside className="sidebar-bg sticky top-0 hidden h-dvh flex-col p-4 text-white lg:flex">
+        <div className="px-2 pt-2"><Logo to="/app" text="VCS" /></div>
+        <nav className="mt-8 flex-1 space-y-1" aria-label="Navigasi utama">
+          {NAV.map((n) => (
+            <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => cx('flex items-center gap-3 rounded-xl px-4 py-3 text-[14.5px] font-semibold transition', isActive ? 'bg-white/10 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white')}>
+              <n.icon className="h-[18px] w-[18px]" />{n.label}
+              {badge(n.to) > 0 && <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-coral px-1.5 text-[11px] font-bold text-white">{badge(n.to)}</span>}
+              {n.to === '/app/calls' && missed > 0 && <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-white/15 px-1.5 text-[11px] font-bold text-white">{missed}</span>}
+            </NavLink>))}
+        </nav>
+        {user?.is_admin && <NavLink to="/admin" className="mb-2 flex items-center gap-2 rounded-xl bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-300"><ShieldCheck className="h-4 w-4" />Panel admin</NavLink>}
+        <div className="border-t border-white/10 pt-3">
+          <NavLink to="/app/settings" className={({ isActive }) => cx('flex items-center gap-3 rounded-xl px-4 py-3 text-[14.5px] font-semibold transition', isActive ? 'bg-white/10 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white')}><Settings className="h-[18px] w-[18px]" />Pengaturan</NavLink>
+          <div className="mt-2 flex items-center gap-3 rounded-xl p-2">
+            <Avatar name={user?.name ?? '?'} size={38} />
+            <div className="min-w-0 flex-1 leading-tight"><p className="truncate text-sm font-bold">{user?.name}</p><p className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-slate-400"><span className={cx('h-1.5 w-1.5 shrink-0 rounded-full', dot)} />{socket === 'online' ? 'Siap menerima panggilan' : socket === 'connecting' ? 'Menyambung…' : 'Offline'}</p></div>
+            <button onClick={out} aria-label="Keluar" className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white"><LogOut className="h-4 w-4" /></button>
           </div>
         </div>
       </aside>
 
       <div className="min-w-0">
-        <header className="flex items-center justify-between px-4 pb-1 pt-4 safe-top lg:hidden">
-          <Logo to="/app" />
-          <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold shadow-card"><span className={cx('h-2 w-2 rounded-full', dot)} />{socket === 'online' ? 'Online' : socket === 'connecting' ? '…' : 'Offline'}</span>
-            <button onClick={out} aria-label="Keluar" className="grid h-10 w-10 place-items-center rounded-full bg-white shadow-card"><LogOut className="h-4 w-4" /></button>
+        {/* Header desktop */}
+        <header className="sticky top-0 z-30 hidden items-center justify-between border-b border-line bg-white/90 px-8 py-4 backdrop-blur lg:flex">
+          <div>{isHome && <p className="text-[13px] text-muted">{greeting()} 👋</p>}<h1 className="font-display text-[22px] font-bold leading-tight">{title}</h1></div>
+          <div className="flex items-center gap-3">
+            <form onSubmit={(e) => { e.preventDefault(); nav(`/app/reports${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`); }} className="relative w-[300px]" role="search">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari laporan, kendaraan…" aria-label="Cari laporan atau kendaraan" className="h-11 w-full rounded-2xl border border-line bg-[#F7F9FC] pl-11 pr-4 text-sm placeholder:text-muted/70 focus:border-brand focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand/10" />
+            </form>
+            <NavLink to="/app/notifications" aria-label="Notifikasi" className="relative grid h-11 w-11 place-items-center rounded-2xl border border-line bg-white hover:bg-brand-soft"><Bell className="h-[18px] w-[18px]" />{newCount > 0 && <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-coral" />}</NavLink>
           </div>
         </header>
-        <main className="mx-auto max-w-5xl px-4 pb-32 pt-4 lg:px-10 lg:pb-12 lg:pt-10"><Outlet /></main>
+        <main className="pb-24 lg:px-8 lg:pb-10 lg:pt-6"><div className="mx-auto max-w-[1160px]"><Outlet /></div></main>
       </div>
 
-      <nav aria-label="Navigasi utama" className="fixed inset-x-3 bottom-3 z-40 flex justify-between rounded-full bg-ink p-1.5 shadow-float safe-bottom-nav lg:hidden" style={{ marginBottom: 'env(safe-area-inset-bottom)' }}>
-        {NAV.filter((n) => n.to !== '/app/notifications').map((n) => (
-          <NavLink key={n.to} to={n.to} end={n.end} aria-label={n.label} className={({ isActive }) => cx('relative flex flex-1 items-center justify-center gap-2 rounded-full py-3 text-[13px] font-bold transition', isActive ? 'bg-white text-ink' : 'text-white/60')}>
-            {({ isActive }) => <><n.icon className="h-5 w-5" />{isActive && <span>{n.label}</span>}{badge(n.to) > 0 && !isActive && <span className="absolute right-2 top-1.5 h-2.5 w-2.5 rounded-full bg-coral ring-2 ring-ink" />}</>}
+      {/* Tab bawah (mobile): Beranda · Kendaraan · Laporan · Panggilan · Akun */}
+      <nav aria-label="Navigasi utama" className="fixed inset-x-0 bottom-0 z-40 flex border-t border-line bg-white/95 backdrop-blur lg:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        {TABS.map((n) => (
+          <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => cx('relative flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-semibold transition', isActive ? 'text-brand-deep' : 'text-muted')}>
+            <span className="relative"><n.icon className="h-[22px] w-[22px]" />{badge(n.to) > 0 && <span className="absolute -right-1.5 -top-1 h-2.5 w-2.5 rounded-full bg-coral ring-2 ring-white" />}</span>{n.label}
           </NavLink>))}
       </nav>
-      <CallOverlay />
+      <Overlays />
     </div>
   );
 }

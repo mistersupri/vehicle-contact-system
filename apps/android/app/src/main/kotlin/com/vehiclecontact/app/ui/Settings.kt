@@ -50,7 +50,7 @@ fun SettingsScreen() {
                         Text("Terima panggilan saat aplikasi ditutup", fontWeight = FontWeight.SemiBold)
                         Text("Menjaga koneksi ke server lewat layanan latar belakang (ada notifikasi tetap). Tanpa ini, panggilan hanya berdering saat aplikasi terbuka.", color = Muted, fontSize = 13.sp)
                     }
-                    Switch(checked = listen, onCheckedChange = { v -> listen = v; app.session.listenEnabled = v; if (v) CallService.start(ctx) else CallService.stop(ctx) }, colors = SwitchDefaults.colors(checkedTrackColor = Ink))
+                    Switch(checked = listen, onCheckedChange = { v -> listen = v; app.session.listenEnabled = v; if (v) CallService.start(ctx) else CallService.stop(ctx) }, colors = SwitchDefaults.colors(checkedTrackColor = Brand))
                 }
             }
         }
@@ -64,8 +64,9 @@ fun SettingsScreen() {
                     SwitchRow("Panggilan internet (WebRTC)", "Izinkan pemindai QR menelepon Anda lewat browser.", f.webrtc_enabled) { form = f.copy(webrtc_enabled = it) }
                     Text("Ketersediaan", fontWeight = FontWeight.SemiBold)
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) { AVAIL.forEach { (code, label) ->
-                        FilterChip(selected = f.call_availability == code, onClick = { form = f.copy(call_availability = code) }, label = { Text(label) }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Ink, selectedLabelColor = Color.White))
+                        FilterChip(selected = f.call_availability == code, onClick = { form = f.copy(call_availability = code) }, label = { Text(label) }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Brand, selectedLabelColor = Color.White))
                     } }
+                    SwitchRow("Notifikasi mendesak", "Pengunjung dapat mengirim pemberitahuan layar penuh tanpa panggilan (tidak memakai TURN).", f.allow_urgent_alerts) { form = f.copy(allow_urgent_alerts = it) }
                     SwitchRow("Terima panggilan anonim", "Pengunjung tak perlu mengisi identitas.", f.allow_anonymous_webrtc) { form = f.copy(allow_anonymous_webrtc = it) }
                     SwitchRow("Jam tenang", "Panggilan tidak berdering pada rentang ini. Laporan tetap diterima.", f.quiet_hours.enabled) { form = f.copy(quiet_hours = f.quiet_hours.copy(enabled = it)) }
                     if (f.quiet_hours.enabled) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -81,7 +82,7 @@ fun SettingsScreen() {
                         busy = true; error = null
                         scope.launch {
                             try {
-                                app.api.saveCallSettings(CallSettingsInput(f.webrtc_enabled, f.call_availability, f.ring_timeout_seconds.coerceIn(15, 90), f.max_call_duration_seconds.coerceIn(60, 600), f.allow_anonymous_webrtc, f.quiet_hours))
+                                app.api.saveCallSettings(CallSettingsInput(f.webrtc_enabled, f.call_availability, f.ring_timeout_seconds.coerceIn(15, 90), f.max_call_duration_seconds.coerceIn(60, 600), f.allow_anonymous_webrtc, f.quiet_hours, f.allow_urgent_alerts))
                                 saved = true
                             } catch (e: ApiException) { error = e.fields.values.firstOrNull() ?: e.message } finally { busy = false }
                         }
@@ -113,6 +114,6 @@ fun SettingsScreen() {
 private fun SwitchRow(title: String, desc: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) { Text(title, fontWeight = FontWeight.SemiBold); Text(desc, color = Muted, fontSize = 13.sp) }
-        Switch(checked = checked, onCheckedChange = onChange, colors = SwitchDefaults.colors(checkedTrackColor = Ink))
+        Switch(checked = checked, onCheckedChange = onChange, colors = SwitchDefaults.colors(checkedTrackColor = Brand))
     }
 }

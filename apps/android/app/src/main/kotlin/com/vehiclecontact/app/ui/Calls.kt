@@ -43,8 +43,8 @@ fun CallsScreen() {
         item { ReadinessCard() }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(selected = !missedOnly, onClick = { missedOnly = false }, label = { Text("Semua") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Ink, selectedLabelColor = Color.White))
-                FilterChip(selected = missedOnly, onClick = { missedOnly = true }, label = { Text("Tak terjawab") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Ink, selectedLabelColor = Color.White))
+                FilterChip(selected = !missedOnly, onClick = { missedOnly = false }, label = { Text("Semua") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Brand, selectedLabelColor = Color.White))
+                FilterChip(selected = missedOnly, onClick = { missedOnly = true }, label = { Text("Tak terjawab") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Brand, selectedLabelColor = Color.White))
             }
         }
         item { loader.Content { c -> if (c.isEmpty()) Empty(if (missedOnly) "Tidak ada panggilan tak terjawab" else "Belum ada panggilan", "Riwayat panggilan beserta durasinya akan tampil di sini.") } }

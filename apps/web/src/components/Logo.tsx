@@ -1,18 +1,14 @@
 import { Link } from 'react-router-dom';
+import { Shield } from 'lucide-react';
 import { cx } from '../lib/utils';
 
 export function LogoMark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 48 48" className={cx('h-9 w-9', className)} aria-hidden>
-      <rect width="48" height="48" rx="14" fill="#101011" />
-      <rect x="9" y="9" width="13" height="13" rx="3.5" fill="#CDE8DA" /><rect x="26" y="9" width="13" height="13" rx="3.5" fill="#fff" /><rect x="9" y="26" width="13" height="13" rx="3.5" fill="#fff" />
-      <path d="M29 32.5h9M33.5 28v9" stroke="#CDE8DA" strokeWidth="3" strokeLinecap="round" />
-    </svg>
-  );
+  return <span className={cx('grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-navy-900 text-white', className)} aria-hidden><Shield className="h-[18px] w-[18px]" /></span>;
 }
-export const Logo = ({ to = '/', light }: { to?: string; light?: boolean }) => (
+/** `text` = teks di samping tile (mis. "VCS" di sidebar, "Vehicle Contact" di halaman auth). */
+export const Logo = ({ to = '/', light = true, text = 'Vehicle Contact' }: { to?: string; light?: boolean; text?: string }) => (
   <Link to={to} className="inline-flex items-center gap-2.5" aria-label="Vehicle Contact System">
     <LogoMark />
-    <span className={cx('text-[17px] font-bold leading-none tracking-tight', light ? 'text-white' : 'text-ink')}>Vehicle<br /><span className="font-medium opacity-60">Contact</span></span>
+    <span className={cx('font-display text-[16px] font-bold leading-none tracking-tight', light ? 'text-white' : 'text-ink')}>{text}</span>
   </Link>
 );

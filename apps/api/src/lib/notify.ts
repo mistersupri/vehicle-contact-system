@@ -13,8 +13,8 @@ const CATEGORY: Record<string, string> = {};
 export function composeText(kind: string, p: any): string {
   if (kind === 'report.created') {
     return [
-      '🚗 Laporan baru untuk kendaraan Anda',
-      `Kendaraan: ${p.plate}`,
+      p.urgent ? '🚨 NOTIFIKASI MENDESAK — seseorang meminta Anda segera ke kendaraan' : '🚗 Laporan baru untuk kendaraan Anda',
+      `Kendaraan: ${p.vehicle_name ? `${p.vehicle_name} · ` : ''}${p.plate}`,
       `Kategori: ${p.category_label}`,
       `Pesan: ${p.message.length > 300 ? p.message.slice(0, 300) + '…' : p.message}`,
       `Waktu: ${new Date(p.at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short' })} WIB`,

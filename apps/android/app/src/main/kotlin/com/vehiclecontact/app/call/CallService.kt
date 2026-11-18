@@ -87,6 +87,18 @@ class CallService : Service() {
                 }
             }
         }
+        scope.launch {
+            app.engine.alert.collect { a ->
+                val nm = getSystemService(NotificationManager::class.java)
+                if (a == null) nm.cancel(NotificationHelper.ID_ALERT)
+                else {
+                    acquireWake()
+                    runCatching { nm.notify(NotificationHelper.ID_ALERT, NotificationHelper.urgent(this@CallService, a)) }
+                    // Aplikasi di depan: buka langsung; di latar belakang: notifikasi layar penuh yang tampil
+                    runCatching { startActivity(AlertActivity.intent(this@CallService)) }
+                }
+            }
+        }
         scope.launch { app.engine.connection.collect { if (app.engine.state.value is CallState.Idle) goForeground(false, "") } }
         scope.launch { app.engine.events.collect { if (it is EngineEvent.Missed) NotificationHelper.missed(this@CallService, it.plate) } }
     }

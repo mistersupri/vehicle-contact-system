@@ -156,3 +156,27 @@ class ApiClientTest {
         assertEquals("ONLINE", api.callSettings().call_availability)
     }
 }
+
+class AlertTests {
+    private val json = """{"type":"alert:urgent","report_id":"r1","reference":"VCS-ALRT","plate":"B 1234 XYZ","vehicle_name":"Mobil Keluarga","category":"ACCESS","category_label":"Menghalangi akses","message":"Mohon dipindahkan","at":"t"}"""
+
+    @Test fun `parse alert urgent dan dismiss`() {
+        val a = parseSignal(json) as SignalEvent.Alert
+        assertEquals("r1", a.reportId); assertEquals("Mobil Keluarga", a.vehicleName); assertEquals("Mohon dipindahkan", a.message)
+        assertEquals(SignalEvent.AlertDismiss("r1"), parseSignal("""{"type":"alert:dismiss","report_id":"r1"}"""))
+        assertNull(parseSignal("""{"type":"alert:urgent"}"""))
+    }
+    @Test fun `alert tidak mengubah status panggilan, bahkan saat sedang menelepon`() {
+        val a = parseSignal(json) as SignalEvent.Alert
+        for (s in listOf(CallState.Idle, CallState.Connected("c", "B 1"))) {
+            val t = CallReducer.reduce(s, I.Signal(a))
+            assertEquals(s, t.state); assertEquals(listOf<E>(E.ShowAlert(a)), t.effects)
+        }
+        val d = CallReducer.reduce(CallState.Idle, I.Signal(SignalEvent.AlertDismiss("r1")))
+        assertEquals(listOf<E>(E.DismissAlert("r1")), d.effects)
+    }
+    @Test fun `invite membawa nama kendaraan dan email dikirim ke endpoint yang benar`() {
+        assertEquals("Mobil", (parseSignal("""{"type":"call:invite","call_id":"c","reference":"R","plate":"B 1","vehicle_name":"Mobil"}""") as SignalEvent.Invite).vehicleName)
+        assertEquals("Menghalangi akses", Labels.category["ACCESS"]); assertEquals("Akses", Labels.categoryShort["ACCESS"])
+    }
+}

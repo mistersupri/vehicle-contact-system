@@ -1,28 +1,39 @@
-@import '@fontsource-variable/plus-jakarta-sans';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/space-grotesk';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   html { -webkit-text-size-adjust: 100%; }
-  body { @apply bg-paper text-ink font-sans antialiased; letter-spacing: -0.005em; }
-  h1, h2, h3 { letter-spacing: -0.025em; }
+  body { @apply bg-paper text-ink font-sans antialiased; }
+  h1, h2, h3, .font-display { font-family: 'Space Grotesk Variable', 'Inter Variable', system-ui, sans-serif; letter-spacing: -0.01em; }
   button { @apply cursor-pointer; }
-  :focus-visible { outline: 2px solid #101011; outline-offset: 2px; border-radius: 12px; }
-  ::selection { background: #CDE8DA; }
+  :focus-visible { outline: 2px solid #2B7FE8; outline-offset: 2px; border-radius: 12px; }
+  ::selection { background: #CFE3FF; }
   input, textarea, select { font: inherit; }
 }
 
 @layer components {
-  .card { @apply bg-white rounded-3xl shadow-card; }
-  .card-dark { @apply bg-ink text-white rounded-3xl; }
-  .card-mint { @apply bg-mint rounded-3xl; }
-  .label { @apply block text-[13px] font-semibold text-ink mb-1.5; }
-  .input {
-    @apply w-full rounded-2xl bg-paper/70 border border-transparent px-4 py-3.5 text-[15px] placeholder:text-muted/70
-           transition focus:bg-white focus:border-ink focus:outline-none;
+  .card { @apply bg-white rounded-3xl border border-line/70 shadow-card; }
+  /* Hero: navy gelap di kiri-atas → biru terang di kanan-bawah */
+  .hero {
+    background:
+      radial-gradient(80% 60% at 85% 112%, rgba(43,127,232,.95) 0%, rgba(43,127,232,0) 72%),
+      radial-gradient(60% 50% at 100% 100%, rgba(66,150,255,.55) 0%, rgba(66,150,255,0) 70%),
+      linear-gradient(168deg, #060C17 0%, #0A1A35 55%, #0F2C5B 100%);
+    @apply text-white;
   }
-  .input[aria-invalid='true'] { @apply border-coral bg-coral-soft/50; }
+  .sidebar-bg { background: linear-gradient(180deg, #0A1424 0%, #0C1B38 60%, #0E2247 100%); }
+  .call-bg { background: linear-gradient(180deg, #060C17 0%, #0A1A35 55%, #143A78 100%); @apply text-white; }
+  .btn-primary { background: linear-gradient(100deg, #2B7FE8 0%, #1A56A8 100%); box-shadow: 0 10px 24px -10px rgba(43,127,232,.65); @apply text-white; }
+  .glass { @apply bg-white/10 border border-white/10 backdrop-blur-sm; }
+  .label { @apply block text-[13px] font-semibold text-ink-2 mb-1.5; }
+  .input {
+    @apply w-full rounded-2xl bg-[#F7F9FC] border border-line px-4 py-3.5 text-[15px] placeholder:text-muted/70
+           transition focus:bg-white focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10;
+  }
+  .input[aria-invalid='true'] { @apply border-coral bg-coral-soft/40; }
   .eyebrow { @apply text-[13px] font-medium text-muted; }
   .scroll-hide { scrollbar-width: none; }
   .scroll-hide::-webkit-scrollbar { display: none; }
@@ -31,16 +42,12 @@
 .safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5rem); }
 .safe-top { padding-top: max(env(safe-area-inset-top, 0px), 1.25rem); }
 
-/* Plat nomor */
-.plate {
-  font-variant-numeric: tabular-nums; letter-spacing: .06em;
-  background: #fff; color: #101011; border: 3px solid #101011; border-radius: 14px; box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 3px #101011;
-}
+/* Plat nomor (chip) */
+.plate-chip { font-family: 'Space Grotesk Variable', system-ui, sans-serif; font-weight: 700; letter-spacing: .08em; font-variant-numeric: tabular-nums; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
-
 @media print {
   body * { visibility: hidden !important; }
   .print-area, .print-area * { visibility: visible !important; }

@@ -8,8 +8,8 @@ import { Button, ErrorNote, Field, LinkButton, Notice, Textarea } from '../compo
 function Doc({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="mx-auto min-h-dvh max-w-2xl px-5 py-6">
-      <div className="flex items-center justify-between"><Logo /><Link to={-1 as any} onClick={(e) => { e.preventDefault(); history.length > 1 ? history.back() : (location.href = '/'); }} className="inline-flex items-center gap-1.5 text-sm font-semibold"><ArrowLeft className="h-4 w-4" />Kembali</Link></div>
-      <h1 className="mt-10 text-4xl font-semibold">{title}</h1>
+      <div className="flex items-center justify-between"><Logo light={false} /><Link to={-1 as any} onClick={(e) => { e.preventDefault(); history.length > 1 ? history.back() : (location.href = '/'); }} className="inline-flex items-center gap-1.5 text-sm font-semibold"><ArrowLeft className="h-4 w-4" />Kembali</Link></div>
+      <h1 className="mt-10 font-display text-4xl font-bold">{title}</h1>
       <div className="mt-6 space-y-4 text-[15.5px] leading-relaxed text-ink/80 [&_h2]:mt-8 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-ink [&_li]:ml-5 [&_li]:list-disc">{children}</div>
     </div>
   );
@@ -48,5 +48,5 @@ export function Abuse() {
 }
 
 export function NotFound() {
-  return <div className="grid min-h-dvh place-items-center px-6 text-center"><div><div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-mint"><Compass className="h-9 w-9" /></div><h1 className="mt-6 text-4xl font-semibold">Halaman tidak ditemukan</h1><p className="mt-2 text-muted">Tautan yang Anda buka tidak ada atau sudah dipindahkan.</p><LinkButton to="/" className="mt-6">Ke beranda</LinkButton></div></div>;
+  return <div className="grid min-h-dvh place-items-center px-6 text-center"><div><div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-brand-soft text-brand"><Compass className="h-9 w-9" /></div><h1 className="mt-6 font-display text-4xl font-bold">Halaman tidak ditemukan</h1><p className="mt-2 text-muted">Tautan yang Anda buka tidak ada atau sudah dipindahkan.</p><LinkButton to="/" className="mt-6">Ke beranda</LinkButton></div></div>;
 }

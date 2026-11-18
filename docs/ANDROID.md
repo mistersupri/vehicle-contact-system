@@ -24,7 +24,10 @@ Pengunjung memindai QR ──► server (WebSocket signaling) ──► CallServ
 > **Pabrikan tertentu** (Xiaomi, Oppo, Vivo, Huawei, Samsung) punya pengaturan "Mulai otomatis"/"Aplikasi latar belakang" sendiri yang bisa mematikan layanan walau izin baterai diberikan. Aktifkan untuk aplikasi ini. Ini batasan Android, bukan bug aplikasi.
 
 ## Layar
-Masuk/Daftar/Lupa sandi · Ringkasan · Kendaraan (tambah/ubah/QR/bagikan/ganti/cabut) · Laporan (filter, detail, foto, ubah status, riwayat) · Panggilan (riwayat, status koneksi) · Notifikasi (Telegram/WhatsApp) · Pengaturan (siaga, ketersediaan, jam tenang, keluar). Akun **admin** tetap lewat web (butuh MFA).
+Tab bawah: Beranda · Kendaraan · Laporan · Panggilan · Akun. Masuk/Daftar/Lupa sandi · Beranda · Kendaraan (tambah/ubah/QR/bagikan/ganti/cabut) · Laporan (filter, detail, foto, ubah status, riwayat) · Panggilan (riwayat, status koneksi) · Notifikasi (Telegram/WhatsApp/Email) · Akun (siaga, ketersediaan, notifikasi mendesak, jam tenang, keluar). Akun **admin** tetap lewat web (butuh MFA).
+
+## Notifikasi Mendesak (bukan panggilan)
+Event `alert:urgent` dari server menampilkan **`AlertActivity`** (layar penuh di atas layar kunci, menyalakan layar) + notifikasi saluran *Notifikasi mendesak* (`CATEGORY_ALARM`, full-screen intent, getar, **tanpa nada dering berulang, tanpa audio/mikrofon/WebRTC**). Tombol *Lihat Laporan* membuka aplikasi; *Tutup* menutup. `alert:dismiss` (laporan sudah ditangani di perangkat lain) menutupnya otomatis. Logika murni ada di `CallReducer` (`ShowAlert`/`DismissAlert`) dan diuji di JVM.
 
 ## Build & uji
 ```bash

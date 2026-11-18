@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { all, audit, get, now, run } from '../db.ts';
 import { AppError, notFound, paging, parse, requireUser, userFromSessionToken, SESSION_COOKIE } from '../lib/http.ts';
 import { encrypt, uuid, verifyToken } from '../lib/security.ts';
-import { accept, cancelByCaller, end, finish, ownedCall, pendingInvites, reject, settingsFor } from '../lib/calls.ts';
+import { accept, cancelByCaller, end, finish, inQuietHours, ownedCall, pendingInvites, reject, settingsFor } from '../lib/calls.ts';
 import { ownerSockets, room, rooms, send, isOwnerOnline } from '../lib/hub.ts';
 import { telephonyReady } from '../lib/telephony.ts';
 import { LIMITS } from '../config.ts';
@@ -45,7 +45,7 @@ export default async function callRoutes(app: FastifyInstance) {
     return {
       webrtc_enabled: !!s.webrtc_enabled, pstn_enabled: !!s.pstn_enabled, call_availability: s.call_availability,
       max_call_duration_seconds: s.max_call_duration_seconds, ring_timeout_seconds: s.ring_timeout_seconds,
-      allow_anonymous_webrtc: !!s.allow_anonymous_webrtc,
+      allow_anonymous_webrtc: !!s.allow_anonymous_webrtc, allow_urgent_alerts: !!s.allow_urgent_alerts,
       quiet_hours: s.quiet_hours ? JSON.parse(s.quiet_hours) : { enabled: false, start: '22:00', end: '06:00', timezone: 'Asia/Jakarta' },
       owner_phone_set: !!s.owner_phone_encrypted, pstn_provider_ready: telephonyReady(), owner_online: isOwnerOnline(userId),
     };
@@ -56,19 +56,20 @@ export default async function callRoutes(app: FastifyInstance) {
     const b = parse(z.object({
       webrtc_enabled: z.boolean(), pstn_enabled: z.boolean(), call_availability: z.enum(['ONLINE', 'ALWAYS', 'OFFLINE']),
       max_call_duration_seconds: z.number().int().min(60).max(LIMITS.maxCallSeconds),
-      ring_timeout_seconds: z.number().int().min(15).max(90), allow_anonymous_webrtc: z.boolean(),
+      ring_timeout_seconds: z.number().int().min(15).max(90), allow_anonymous_webrtc: z.boolean(), allow_urgent_alerts: z.boolean(),
       quiet_hours: z.object({ enabled: z.boolean(), start: z.string().regex(/^\d\d:\d\d$/), end: z.string().regex(/^\d\d:\d\d$/), timezone: z.string().default('Asia/Jakarta') }),
       owner_phone: z.string().trim().regex(/^\+[1-9]\d{7,14}$/, 'Gunakan format internasional, contoh +628123456789').nullable(),
     }).partial(), req.body);
     settingsFor(u.id);
     const cur = get<any>('SELECT * FROM call_settings WHERE user_id=?', u.id);
     if (b.pstn_enabled && !telephonyReady()) throw new AppError(409, 'PSTN_PROVIDER_NOT_READY', 'Provider telephony belum dikonfigurasi oleh administrator');
-    run(`UPDATE call_settings SET webrtc_enabled=?, pstn_enabled=?, call_availability=?, max_call_duration_seconds=?, ring_timeout_seconds=?, allow_anonymous_webrtc=?, quiet_hours=?, owner_phone_encrypted=?, updated_at=? WHERE user_id=?`,
+    run(`UPDATE call_settings SET webrtc_enabled=?, pstn_enabled=?, call_availability=?, max_call_duration_seconds=?, ring_timeout_seconds=?, allow_anonymous_webrtc=?, quiet_hours=?, owner_phone_encrypted=?, allow_urgent_alerts=?, updated_at=? WHERE user_id=?`,
       b.webrtc_enabled === undefined ? cur.webrtc_enabled : +b.webrtc_enabled, b.pstn_enabled === undefined ? cur.pstn_enabled : +b.pstn_enabled,
       b.call_availability ?? cur.call_availability, b.max_call_duration_seconds ?? cur.max_call_duration_seconds, b.ring_timeout_seconds ?? cur.ring_timeout_seconds,
       b.allow_anonymous_webrtc === undefined ? cur.allow_anonymous_webrtc : +b.allow_anonymous_webrtc,
       b.quiet_hours ? JSON.stringify(b.quiet_hours) : cur.quiet_hours,
-      b.owner_phone === undefined ? cur.owner_phone_encrypted : b.owner_phone ? encrypt(b.owner_phone) : null, now(), u.id);
+      b.owner_phone === undefined ? cur.owner_phone_encrypted : b.owner_phone ? encrypt(b.owner_phone) : null,
+      b.allow_urgent_alerts === undefined ? cur.allow_urgent_alerts : +b.allow_urgent_alerts, now(), u.id);
     audit(u.id, 'call_settings.updated', 'user', u.id, { fields: Object.keys(b).filter((k) => k !== 'owner_phone') });
     return { settings: present(u.id) };
   });
@@ -85,6 +86,11 @@ export default async function callRoutes(app: FastifyInstance) {
     if (owner) {
       const set = ownerSockets.get(owner.id) ?? new Set(); set.add(socket); ownerSockets.set(owner.id, set);
       for (const inv of pendingInvites(owner.id)) send(socket, { type: 'call:invite', ...inv, ring_timeout: settingsFor(owner.id).ring_timeout_seconds });
+      if (!inQuietHours(settingsFor(owner.id).quiet_hours)) {
+        for (const a of all<any>(`SELECT r.id AS report_id, r.public_reference AS reference, r.message, r.category, r.created_at AS at, v.plate_number AS plate, v.name AS vehicle_name, c.label AS category_label
+            FROM reports r JOIN vehicles v ON v.id=r.vehicle_id LEFT JOIN report_categories c ON c.code=r.category
+            WHERE v.user_id=? AND r.urgent=1 AND r.status='NEW' AND r.created_at>?`, owner.id, new Date(Date.now() - 120_000).toISOString())) send(socket, { type: 'alert:urgent', ...a });
+      }
       send(socket, { type: 'hello', role: 'OWNER' });
     } else if (caller) {
       const c = get<any>('SELECT * FROM calls WHERE id=?', caller.call_id);

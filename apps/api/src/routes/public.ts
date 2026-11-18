@@ -6,7 +6,8 @@ import { AppError, ipHash, notFound, parse } from '../lib/http.ts';
 import { decrypt, encrypt, hmac, publicReference, uuid } from '../lib/security.ts';
 import { processImage } from '../lib/storage.ts';
 import { enqueue } from '../lib/notify.ts';
-import { createWebrtcCall, callerToken, settingsFor, webrtcUnavailableReason, logEvent } from '../lib/calls.ts';
+import { createWebrtcCall, callerToken, settingsFor, webrtcUnavailableReason, logEvent, inQuietHours } from '../lib/calls.ts';
+import { isOwnerOnline, sendToOwner } from '../lib/hub.ts';
 import { getIceServers } from '../lib/ice.ts';
 import { getTelephony, telephonyReady } from '../lib/telephony.ts';
 
@@ -29,6 +30,35 @@ function requireActive(token: string, ip: string) {
 }
 function abuse(vehicleId: string | null, type: string, source: string, details: object = {}) {
   run('INSERT INTO abuse_events(id,vehicle_id,event_type,source_hash,details,created_at) VALUES (?,?,?,?,?,?)', uuid(), vehicleId, type, source, JSON.stringify(details), now());
+}
+
+/** Batas laju laporan (per kendaraan & per sumber). Dipakai laporan biasa dan notifikasi mendesak. */
+function enforceReportLimits(v: any, ip: string) {
+  const limit = getSetting('report_rate_limit'), windowMin = getSetting('report_rate_window_minutes');
+  const recent = get<any>('SELECT COUNT(*) c FROM reports WHERE vehicle_id=? AND created_at>?', v.id, new Date(Date.now() - windowMin * 60_000).toISOString());
+  if (recent.c >= limit) {
+    abuse(v.id, 'report.rate_limited', ip);
+    throw new AppError(429, 'RATE_LIMITED', `Terlalu banyak laporan untuk kendaraan ini. Coba lagi dalam ${windowMin} menit.`);
+  }
+  const sameSource = get<any>('SELECT COUNT(*) c FROM reports WHERE vehicle_id=? AND source_ip_hash=? AND created_at>?', v.id, ip, new Date(Date.now() - 60_000).toISOString());
+  if (sameSource.c >= 2) { abuse(v.id, 'report.source_cooldown', ip); throw new AppError(429, 'RATE_LIMITED', 'Mohon tunggu sebentar sebelum mengirim laporan lagi'); }
+}
+
+interface NewReport { v: any; cat: { code: string; label: string }; message: string; name: string | null; phone: string | null; ip: string; attachmentIds: string[]; urgent: boolean }
+/** Simpan laporan + riwayat + event outbox dalam SATU transaksi (laporan tidak pernah tanpa event notifikasi). */
+function insertReport(n: NewReport) {
+  const id = uuid(), reference = publicReference('VCS');
+  tx(() => {
+    for (const aid of n.attachmentIds) {
+      if (!get('SELECT 1 FROM report_attachments WHERE id=? AND vehicle_id=? AND report_id IS NULL', aid, n.v.id)) throw new AppError(400, 'INVALID_ATTACHMENT', 'Lampiran tidak valid atau sudah dipakai');
+    }
+    run(`INSERT INTO reports(id,public_reference,vehicle_id,category,message,status,reporter_name,reporter_phone_encrypted,source_ip_hash,urgent,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+      id, reference, n.v.id, n.cat.code, n.message, 'NEW', n.name, n.phone ? encrypt(n.phone) : null, n.ip, n.urgent ? 1 : 0, now(), now());
+    run('INSERT INTO report_status_histories(id,report_id,old_status,new_status,changed_by_user_id,note,created_at) VALUES (?,?,?,?,?,?,?)', uuid(), id, null, 'NEW', null, n.urgent ? 'Notifikasi mendesak' : 'Laporan dibuat', now());
+    for (const aid of n.attachmentIds) run('UPDATE report_attachments SET report_id=? WHERE id=?', id, aid);
+    enqueue('report.created', { report_id: id, owner_id: n.v.user_id, reference, plate: n.v.plate_number, vehicle_name: n.v.name ?? null, category_label: n.cat.label, message: n.message, urgent: n.urgent, at: now() });
+  });
+  return { id, reference };
 }
 
 const PUBLIC_STATUS: Record<string, string> = { NEW: 'Diterima', READ: 'Dilihat pemilik', IN_PROGRESS: 'Sedang ditangani', RESOLVED: 'Selesai', ARCHIVED: 'Selesai' };
@@ -60,6 +90,7 @@ export default async function publicRoutes(app: FastifyInstance) {
         webrtc_available: !webrtcUnavailableReason(vehicle.user_id),
         webrtc_unavailable_reason: webrtcUnavailableReason(vehicle.user_id),
         pstn_available: !!s.pstn_enabled && telephonyReady() && !!s.owner_phone_encrypted,
+        alerts_available: !!s.allow_urgent_alerts,
       },
     };
   });
@@ -88,29 +119,40 @@ export default async function publicRoutes(app: FastifyInstance) {
     const cat = get<any>('SELECT code,label FROM report_categories WHERE code=? AND active=1', b.category);
     if (!cat) throw new AppError(400, 'VALIDATION_ERROR', 'Kategori tidak valid', { fields: { category: 'Kategori tidak valid' } });
 
-    const limit = getSetting('report_rate_limit'), windowMin = getSetting('report_rate_window_minutes');
-    const recent = get<any>('SELECT COUNT(*) c FROM reports WHERE vehicle_id=? AND created_at>?', v.id, new Date(Date.now() - windowMin * 60_000).toISOString());
-    if (recent.c >= limit) {
-      abuse(v.id, 'report.rate_limited', ip);
-      throw new AppError(429, 'RATE_LIMITED', `Terlalu banyak laporan untuk kendaraan ini. Coba lagi dalam ${windowMin} menit.`);
-    }
-    const sameSource = get<any>('SELECT COUNT(*) c FROM reports WHERE vehicle_id=? AND source_ip_hash=? AND created_at>?', v.id, ip, new Date(Date.now() - 60_000).toISOString());
-    if (sameSource.c >= 2) { abuse(v.id, 'report.source_cooldown', ip); throw new AppError(429, 'RATE_LIMITED', 'Mohon tunggu sebentar sebelum mengirim laporan lagi'); }
-
-    const id = uuid(), reference = publicReference('VCS');
-    tx(() => {
-      for (const aid of b.attachment_ids) {
-        const a = get('SELECT 1 FROM report_attachments WHERE id=? AND vehicle_id=? AND report_id IS NULL', aid, v.id);
-        if (!a) throw new AppError(400, 'INVALID_ATTACHMENT', 'Lampiran tidak valid atau sudah dipakai');
-      }
-      run(`INSERT INTO reports(id,public_reference,vehicle_id,category,message,status,reporter_name,reporter_phone_encrypted,source_ip_hash,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-        id, reference, v.id, cat.code, b.message, 'NEW', b.reporter_name, b.reporter_phone ? encrypt(b.reporter_phone) : null, ip, now(), now());
-      run('INSERT INTO report_status_histories(id,report_id,old_status,new_status,changed_by_user_id,note,created_at) VALUES (?,?,?,?,?,?,?)', uuid(), id, null, 'NEW', null, 'Laporan dibuat', now());
-      for (const aid of b.attachment_ids) run('UPDATE report_attachments SET report_id=? WHERE id=?', id, aid);
-      // outbox di transaksi yang sama: laporan tidak pernah tersimpan tanpa event notifikasi
-      enqueue('report.created', { report_id: id, owner_id: v.user_id, reference, plate: v.plate_number, category_label: cat.label, message: b.message, at: now() });
-    });
+    enforceReportLimits(v, ip);
+    const { reference } = insertReport({ v, cat, message: b.message, name: b.reporter_name, phone: b.reporter_phone, ip, attachmentIds: b.attachment_ids, urgent: false });
     return reply.status(201).send({ reference, status: PUBLIC_STATUS.NEW });
+  });
+
+  /**
+   * Notifikasi mendesak: alert layar penuh bergaya panggilan di perangkat pemilik, TETAPI bukan panggilan —
+   * tanpa audio/WebRTC, jadi tidak memakai TURN. Tersimpan sebagai laporan `urgent` (riwayat + WhatsApp/Telegram/Email).
+   */
+  const alertSchema = z.object({
+    category: z.string().max(40).optional().nullable(),
+    message: z.string().trim().max(300, 'Pesan maksimal 300 karakter').optional().nullable().transform((x) => x || null),
+  });
+  app.post('/public/vehicles/:token/alerts', publicLimit(3, '10 minutes'), async (req, reply) => {
+    const ip = ipHash(req);
+    const v = requireActive((req.params as any).token, ip);
+    const b = parse(alertSchema, req.body);
+    const s = settingsFor(v.user_id);
+    if (!s.allow_urgent_alerts) throw new AppError(409, 'ALERTS_DISABLED', 'Pemilik tidak menerima notifikasi mendesak', { fallback: 'message' });
+    const cooldown = getSetting('alert_cooldown_seconds');
+    if (get('SELECT 1 FROM reports WHERE vehicle_id=? AND urgent=1 AND created_at>?', v.id, new Date(Date.now() - cooldown * 1000).toISOString())) {
+      abuse(v.id, 'alert.cooldown', ip);
+      throw new AppError(429, 'COOLDOWN', `Notifikasi mendesak baru saja dikirim. Tunggu ${cooldown} detik sebelum mencoba lagi.`);
+    }
+    enforceReportLimits(v, ip);
+    const cat = get<any>('SELECT code,label FROM report_categories WHERE code=? AND active=1', b.category ?? 'OTHER') ?? get<any>("SELECT code,label FROM report_categories WHERE code='OTHER'");
+    const message = b.message ?? 'Notifikasi mendesak: seseorang meminta pemilik segera datang ke kendaraan.';
+    const { id, reference } = insertReport({ v, cat, message, name: null, phone: null, ip, attachmentIds: [], urgent: true });
+
+    // Layar penuh hanya di luar jam tenang; di luar itu tetap tercatat dan dikirim ke kanal notifikasi
+    const live = !inQuietHours(s.quiet_hours);
+    const online = isOwnerOnline(v.user_id);
+    if (live) sendToOwner(v.user_id, { type: 'alert:urgent', report_id: id, reference, plate: v.plate_number, vehicle_name: v.name ?? null, category: cat.code, category_label: cat.label, message, at: now() });
+    return reply.status(201).send({ reference, delivered_live: live && online, quiet_hours: !live });
   });
 
   // Pelaporan penyalahgunaan layanan oleh siapa saja (footer halaman publik)

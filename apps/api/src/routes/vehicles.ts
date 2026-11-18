@@ -7,6 +7,7 @@ import { AppError, notFound, parse, requireUser } from '../lib/http.ts';
 import { decrypt, encrypt, hmac, randomToken, uuid } from '../lib/security.ts';
 
 const vehicleSchema = z.object({
+  name: z.string().trim().max(100).optional().nullable().transform((v) => v || null),
   plate_number: z.string().trim().min(2, 'Pelat nomor wajib diisi').max(30).transform((s) => s.toUpperCase().replace(/\s+/g, ' ')),
   vehicle_type: z.enum(['Mobil', 'Motor', 'Truk', 'Bus', 'Lainnya']),
   brand: z.string().trim().max(100).optional().nullable().transform((v) => v || null),
@@ -36,10 +37,11 @@ function serialize(v: any) {
   const qr = activeQr(v.id);
   const stats = get<any>(`SELECT COUNT(*) total, SUM(status='NEW') new_reports FROM reports WHERE vehicle_id=?`, v.id);
   return {
-    id: v.id, plate_number: v.plate_number, vehicle_type: v.vehicle_type, brand: v.brand, model: v.model, color: v.color,
+    id: v.id, name: v.name ?? null, plate_number: v.plate_number, vehicle_type: v.vehicle_type, brand: v.brand, model: v.model, color: v.color,
     owner_display_name: v.owner_display_name, status: v.status, created_at: v.created_at,
     qr: qr ? { id: qr.id, created_at: qr.created_at, public_url: publicUrl(decrypt(qr.token_encrypted)) } : null,
     report_count: stats?.total ?? 0, new_report_count: stats?.new_reports ?? 0,
+    call_count: get<any>('SELECT COUNT(*) c FROM calls WHERE vehicle_id=?', v.id)?.c ?? 0,
   };
 }
 
@@ -54,8 +56,8 @@ export default async function vehicleRoutes(app: FastifyInstance) {
     const body = parse(vehicleSchema, req.body);
     const id = uuid();
     tx(() => {
-      run('INSERT INTO vehicles(id,user_id,plate_number,vehicle_type,brand,model,color,owner_display_name,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-        id, u.id, body.plate_number, body.vehicle_type, body.brand, body.model, body.color, body.owner_display_name, 'ACTIVE', now(), now());
+      run('INSERT INTO vehicles(id,user_id,name,plate_number,vehicle_type,brand,model,color,owner_display_name,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+        id, u.id, body.name, body.plate_number, body.vehicle_type, body.brand, body.model, body.color, body.owner_display_name, 'ACTIVE', now(), now());
       createQr(id);
     });
     audit(u.id, 'vehicle.created', 'vehicle', id, { plate: body.plate_number });
@@ -72,8 +74,8 @@ export default async function vehicleRoutes(app: FastifyInstance) {
     const v = ownedVehicle(u.id, (req.params as any).id);
     const b = parse(vehicleSchema.partial(), req.body);
     const m = { ...v, ...Object.fromEntries(Object.entries(b).filter(([, x]) => x !== undefined)) };
-    run('UPDATE vehicles SET plate_number=?,vehicle_type=?,brand=?,model=?,color=?,owner_display_name=?,updated_at=? WHERE id=?',
-      m.plate_number, m.vehicle_type, m.brand, m.model, m.color, m.owner_display_name, now(), v.id);
+    run('UPDATE vehicles SET name=?,plate_number=?,vehicle_type=?,brand=?,model=?,color=?,owner_display_name=?,updated_at=? WHERE id=?',
+      m.name ?? null, m.plate_number, m.vehicle_type, m.brand, m.model, m.color, m.owner_display_name, now(), v.id);
     audit(u.id, 'vehicle.updated', 'vehicle', v.id);
     return { vehicle: serialize(get('SELECT * FROM vehicles WHERE id=?', v.id)) };
   });

@@ -18,15 +18,15 @@ export default function AdminLayout() {
   const { user, logout } = useAuth(); const nav = useNavigate();
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[264px_1fr]">
-      <aside className="sticky top-0 hidden h-dvh p-3 lg:block"><div className="card-dark flex h-full flex-col p-5">
-        <Logo to="/admin" light /><span className="mt-3 inline-block w-fit rounded-full bg-mint px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-ink">Admin · {user?.admin_role?.replace('_', ' ')}</span>
-        <nav className="mt-6 flex-1 space-y-1 overflow-y-auto">{NAV.map((n) => <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => cx('flex items-center gap-3 rounded-full px-4 py-2.5 text-[14.5px] font-semibold transition', isActive ? 'bg-white text-ink' : 'text-white/65 hover:bg-white/10 hover:text-white')}><n.icon className="h-[18px] w-[18px]" />{n.label}</NavLink>)}</nav>
+      <aside className="sticky top-0 hidden h-dvh lg:block"><div className="sidebar-bg flex h-full flex-col p-5 text-white">
+        <Logo to="/admin" light /><span className="mt-3 inline-block w-fit rounded-full bg-brand/25 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-[#9CC4FF]">Admin · {user?.admin_role?.replace('_', ' ')}</span>
+        <nav className="mt-6 flex-1 space-y-1 overflow-y-auto">{NAV.map((n) => <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => cx('flex items-center gap-3 rounded-full px-4 py-2.5 text-[14.5px] font-semibold transition', isActive ? 'bg-brand text-white' : 'text-white/65 hover:bg-white/10 hover:text-white')}><n.icon className="h-[18px] w-[18px]" />{n.label}</NavLink>)}</nav>
         <NavLink to="/app" className="mb-2 rounded-full bg-white/10 px-4 py-2.5 text-center text-sm font-semibold">Dashboard pemilik</NavLink>
         <button onClick={async () => { await logout(); nav('/', { replace: true }); }} className="flex items-center justify-center gap-2 rounded-full bg-white/10 py-2.5 text-sm font-semibold hover:bg-white/20"><LogOut className="h-4 w-4" />Keluar</button>
       </div></aside>
       <div className="min-w-0">
         <header className="flex items-center justify-between px-4 pt-4 lg:hidden"><Logo to="/admin" /><button onClick={async () => { await logout(); nav('/', { replace: true }); }} aria-label="Keluar" className="grid h-10 w-10 place-items-center rounded-full bg-white shadow-card"><LogOut className="h-4 w-4" /></button></header>
-        <nav className="scroll-hide flex gap-1.5 overflow-x-auto px-4 pt-3 lg:hidden" aria-label="Navigasi admin">{NAV.map((n) => <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => cx('shrink-0 rounded-full px-4 py-2 text-[13px] font-semibold', isActive ? 'bg-ink text-white' : 'bg-white')}>{n.label}</NavLink>)}</nav>
+        <nav className="scroll-hide flex gap-1.5 overflow-x-auto px-4 pt-3 lg:hidden" aria-label="Navigasi admin">{NAV.map((n) => <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => cx('shrink-0 rounded-full px-4 py-2 text-[13px] font-semibold', isActive ? 'btn-primary' : 'bg-white')}>{n.label}</NavLink>)}</nav>
         <main className="mx-auto max-w-6xl px-4 pb-12 pt-5 lg:px-10 lg:pt-10">
           <Routes><Route index element={<Overview />} /><Route path="users" element={<UsersPage />} /><Route path="vehicles" element={<VehiclesPage />} /><Route path="reports" element={<ReportsPage />} /><Route path="calls" element={<CallsPage />} /><Route path="integrations" element={<Integrations />} /><Route path="abuse" element={<Abuse />} /><Route path="audit" element={<Audit />} /><Route path="settings" element={<SettingsPage />} /></Routes>
         </main>
@@ -47,7 +47,7 @@ const SearchBar = ({ value, onChange, placeholder }: { value: string; onChange: 
 );
 
 function Stat({ label, value, sub, tone = 'card' }: { label: string; value: ReactNode; sub?: string; tone?: 'card' | 'card-dark' | 'card-mint' }) {
-  return <div className={cx(tone, 'p-5')}><p className={cx('text-sm font-semibold', tone === 'card-dark' ? 'text-white/55' : 'text-muted')}>{label}</p><p className="mt-4 text-5xl font-semibold leading-none tracking-tight">{value ?? 0}</p>{sub && <p className={cx('mt-2 text-sm', tone === 'card-dark' ? 'text-white/55' : 'text-muted')}>{sub}</p>}</div>;
+  return <div className={cx(tone === 'card-dark' ? 'hero rounded-3xl' : tone === 'card-mint' ? 'rounded-3xl bg-mint text-mint-deep' : 'card', 'p-5')}><p className={cx('text-sm font-semibold', tone === 'card-dark' ? 'text-white/55' : 'text-muted')}>{label}</p><p className="mt-4 font-display text-5xl font-bold leading-none tracking-tight">{value ?? 0}</p>{sub && <p className={cx('mt-2 text-sm', tone === 'card-dark' ? 'text-white/55' : 'text-muted')}>{sub}</p>}</div>;
 }
 
 function Overview() {
@@ -168,7 +168,7 @@ function SettingsPage() {
   const save = useMutation({ mutationFn: () => api('/admin/settings', { method: 'PATCH', body: Object.fromEntries(Object.entries(form!).map(([k, v]) => [k, typeof s.data!.settings[k] === 'number' ? Number(v) : v])) }), onSuccess: () => { setMsg('Pengaturan disimpan.'); setErr(''); }, onError: (e) => { setErr(errMsg(e)); setMsg(''); } });
   const saveCat = useMutation({ mutationFn: (c: { code: string; label: string; description: string; active: boolean }) => api(`/admin/categories/${c.code}`, { method: 'PUT', body: { label: c.label, description: c.description, active: c.active } }), onSuccess: () => { void qc.invalidateQueries({ queryKey: ['a-cats'] }); setNc({ code: '', label: '', description: '' }); }, onError: (e) => setErr(errMsg(e)) });
   if (!form) return <PageLoader />;
-  const labels: Record<string, string> = { report_rate_limit: 'Maks. laporan per kendaraan', report_rate_window_minutes: 'Jendela waktu (menit)', call_cooldown_seconds: 'Jeda antar panggilan (detik)', pstn_daily_limit_per_vehicle: 'Batas PSTN harian per kendaraan', pstn_allowed_prefixes: 'Kode negara PSTN yang diizinkan (pisahkan koma)' };
+  const labels: Record<string, string> = { report_rate_limit: 'Maks. laporan per kendaraan', report_rate_window_minutes: 'Jendela waktu (menit)', call_cooldown_seconds: 'Jeda antar panggilan (detik)', alert_cooldown_seconds: 'Jeda antar notifikasi mendesak (detik)', pstn_daily_limit_per_vehicle: 'Batas PSTN harian per kendaraan', pstn_allowed_prefixes: 'Kode negara PSTN yang diizinkan (pisahkan koma)' };
   return (
     <div className="space-y-4"><PageHeader eyebrow="Parameter sistem" title="Pengaturan" />
       <section className="card p-6"><h2 className="text-lg font-bold">Anti-penyalahgunaan & batas</h2>

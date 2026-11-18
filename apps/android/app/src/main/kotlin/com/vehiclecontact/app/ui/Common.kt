@@ -79,7 +79,7 @@ fun <T> Loader<T>.Content(content: @Composable (T) -> Unit) {
 // ---------- Komponen ----------
 @Composable
 fun Loading(modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Ink, strokeWidth = 3.dp) }
+    Box(modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Brand, strokeWidth = 3.dp) }
 }
 
 @Composable
@@ -98,7 +98,7 @@ fun Notice(text: String, bg: Color = Mint, fg: Color = MintDeep, modifier: Modif
 }
 
 @Composable
-fun Panel(modifier: Modifier = Modifier, color: Color = Color.White, radius: Dp = 24.dp, content: @Composable () -> Unit) {
+fun Panel(modifier: Modifier = Modifier, color: Color = Color.White, radius: Dp = 20.dp, content: @Composable () -> Unit) {
     Surface(modifier = modifier, shape = RoundedCornerShape(radius), color = color, content = content)
 }
 
@@ -115,20 +115,22 @@ fun StatusPill(status: String, label: String) {
         "READ", "ACCEPTED", "PROCESSING" -> Sky to SkyDeep
         "IN_PROGRESS", "RINGING", "RETRY_SCHEDULED", "PENDING" -> Amber to AmberDeep
         "RESOLVED", "COMPLETED", "ACTIVE", "SENT" -> Mint to MintDeep
-        else -> Color(0x14101011) to Ink
+        else -> Color(0xFFEDF1F7) to Muted
     }
     Pill("● $label", bg, fg)
 }
 
 @Composable
 fun BigButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, loading: Boolean = false, dark: Boolean = true) {
+    val shape = RoundedCornerShape(18.dp)
+    val bg = if (dark && enabled && !loading) Modifier.background(BrandBrush, shape) else Modifier
     Button(
-        onClick = onClick, enabled = enabled && !loading, modifier = modifier.fillMaxWidth().height(52.dp), shape = CircleShape,
-        colors = if (dark) ButtonDefaults.buttonColors(containerColor = Ink, contentColor = Color.White)
+        onClick = onClick, enabled = enabled && !loading, modifier = modifier.fillMaxWidth().height(54.dp).then(bg), shape = shape,
+        colors = if (dark) ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.White, disabledContainerColor = Color(0xFFB9C6DA), disabledContentColor = Color.White)
         else ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Ink),
     ) {
         if (loading) CircularProgressIndicator(Modifier.size(20.dp), color = if (dark) Color.White else Ink, strokeWidth = 2.dp)
-        else Text(text, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+        else Text(text, fontWeight = FontWeight.Bold, fontSize = 15.sp)
     }
 }
 
@@ -136,7 +138,7 @@ fun BigButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, 
 fun SmallButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, dark: Boolean = false, enabled: Boolean = true) {
     Button(
         onClick = onClick, enabled = enabled, modifier = modifier.height(40.dp), shape = CircleShape, contentPadding = PaddingValues(horizontal = 16.dp),
-        colors = if (dark) ButtonDefaults.buttonColors(containerColor = Ink, contentColor = Color.White) else ButtonDefaults.buttonColors(containerColor = Color(0x14101011), contentColor = Ink),
+        colors = if (dark) ButtonDefaults.buttonColors(containerColor = Brand, contentColor = Color.White) else ButtonDefaults.buttonColors(containerColor = BrandSoft, contentColor = BrandDeep),
     ) { Text(text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
 }
 
@@ -151,7 +153,7 @@ fun FormField(
         visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
         keyboardOptions = KeyboardOptions(keyboardType = if (password) KeyboardType.Password else keyboard),
         supportingText = (error ?: hint)?.let { t -> { Text(t) } },
-        colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = Color.White, unfocusedContainerColor = Color.White, focusedBorderColor = Ink, focusedLabelColor = Ink),
+        colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = Color.White, unfocusedContainerColor = Color.White, focusedBorderColor = Brand, focusedLabelColor = Brand),
     )
 }
 
@@ -170,7 +172,7 @@ fun Empty(title: String, body: String) {
 fun ScreenTitle(eyebrow: String?, title: String) {
     Column(Modifier.padding(bottom = 12.dp)) {
         if (eyebrow != null) Text(eyebrow, color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-        Text(title, fontSize = 32.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.5).sp)
+        Text(title, fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp)
     }
 }
 

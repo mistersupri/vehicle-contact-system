@@ -75,8 +75,8 @@ private fun LoginForm(onRegister: () -> Unit, onForgot: () -> Unit) {
     BigButton("Masuk", ::submit, loading = busy, enabled = email.isNotBlank() && pass.isNotEmpty())
     Spacer(Modifier.height(8.dp))
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        TextButton(onClick = onForgot) { Text("Lupa kata sandi?", color = Ink) }
-        TextButton(onClick = onRegister) { Text("Daftar", color = Ink, fontWeight = FontWeight.Bold) }
+        TextButton(onClick = onForgot) { Text("Lupa kata sandi?", color = Brand) }
+        TextButton(onClick = onRegister) { Text("Daftar", color = Brand, fontWeight = FontWeight.Bold) }
     }
     TextButton(onClick = { showServer = !showServer }) { Text(if (showServer) "Sembunyikan server" else "Server: ${app.session.serverUrl}", color = Muted, fontSize = 12.sp) }
 }

@@ -118,6 +118,7 @@ class ApiClient(var baseUrl: String, val http: OkHttpClient, val json: kotlinx.s
     suspend fun setChannelEnabled(id: String, enabled: Boolean) { send<Ok, EnabledInput>("PATCH", "/notifications/channels/$id", EnabledInput(enabled)) }
     suspend fun testChannel(channel: String) { send<Ok, TestInput>("POST", "/notifications/test", TestInput(channel)) }
     suspend fun telegramConnect(): TelegramConnectResponse = send("POST", "/notifications/telegram/connect")
+    suspend fun setEmailChannel(enabled: Boolean) { send<Ok, EnabledInput>("PUT", "/notifications/email", EnabledInput(enabled)) }
     suspend fun telegramDisconnect() { send<Ok>("POST", "/notifications/telegram/disconnect") }
     suspend fun whatsappConnect(phone: String): WhatsappConnectResponse = send("POST", "/notifications/whatsapp/connect", WhatsappConnectInput(phone))
     suspend fun whatsappVerify(code: String) { send<Ok, WhatsappVerifyInput>("POST", "/notifications/whatsapp/verify", WhatsappVerifyInput(code)) }

@@ -10,8 +10,8 @@ import { Abuse, NotFound, Privacy } from './pages/Static';
 const OwnerLayout = lazy(() => import('./pages/owner/Layout'));
 const Summary = lazy(() => import('./pages/owner/Summary'));
 const Vehicles = lazy(() => import('./pages/owner/Vehicles'));
+const VehicleDetail = lazy(() => import('./pages/owner/VehicleDetail'));
 const Reports = lazy(() => import('./pages/owner/Reports'));
-const ReportDetailPage = lazy(() => import('./pages/owner/ReportDetail'));
 const Calls = lazy(() => import('./pages/owner/Calls'));
 const Notifications = lazy(() => import('./pages/owner/Notifications'));
 const Settings = lazy(() => import('./pages/owner/Settings'));
@@ -48,8 +48,9 @@ export default function App() {
             <Route path="/app" element={<OwnerLayout />}>
               <Route index element={<Summary />} />
               <Route path="vehicles" element={<Vehicles />} />
+              <Route path="vehicles/:id" element={<VehicleDetail />} />
               <Route path="reports" element={<Reports />} />
-              <Route path="reports/:id" element={<ReportDetailPage />} />
+              <Route path="reports/:id" element={<Reports />} />
               <Route path="calls" element={<Calls />} />
               <Route path="notifications" element={<Notifications />} />
               <Route path="settings" element={<Settings />} />

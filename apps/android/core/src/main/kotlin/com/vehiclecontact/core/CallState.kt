@@ -3,9 +3,9 @@ package com.vehiclecontact.core
 /** Status panggilan di sisi pemilik. */
 sealed interface CallState {
     data object Idle : CallState
-    data class Ringing(val callId: String, val plate: String, val reference: String, val ringTimeoutSec: Int) : CallState
-    data class Connecting(val callId: String, val plate: String) : CallState
-    data class Connected(val callId: String, val plate: String) : CallState
+    data class Ringing(val callId: String, val plate: String, val reference: String, val ringTimeoutSec: Int, val vehicleName: String? = null) : CallState
+    data class Connecting(val callId: String, val plate: String, val vehicleName: String? = null) : CallState
+    data class Connected(val callId: String, val plate: String, val vehicleName: String? = null) : CallState
     data class Ended(val message: String) : CallState
 }
 
@@ -15,6 +15,8 @@ sealed interface CallEffect {
     data class StartPeer(val callId: String, val offerSdp: String, val iceServers: List<IceServerInfo>) : CallEffect
     data class AddRemoteIce(val candidate: IceCandidateInfo) : CallEffect
     data class ShowIncoming(val state: CallState.Ringing) : CallEffect
+    data class ShowAlert(val alert: SignalEvent.Alert) : CallEffect
+    data class DismissAlert(val reportId: String) : CallEffect
     data class DismissIncoming(val callId: String) : CallEffect
     data object ClosePeer : CallEffect
     data class NotifyMissed(val plate: String) : CallEffect
@@ -43,7 +45,7 @@ object CallReducer {
         is CallInput.Signal -> signal(s, input.event)
 
         CallInput.UserAccept -> if (s is CallState.Ringing)
-            Transition(CallState.Connecting(s.callId, s.plate), listOf(CallEffect.Send(SignalOut.accept(s.callId)), CallEffect.DismissIncoming(s.callId)))
+            Transition(CallState.Connecting(s.callId, s.plate, s.vehicleName), listOf(CallEffect.Send(SignalOut.accept(s.callId)), CallEffect.DismissIncoming(s.callId)))
         else Transition(s)
 
         CallInput.UserReject -> if (s is CallState.Ringing)
@@ -56,7 +58,7 @@ object CallReducer {
             else -> Transition(s)
         }
 
-        CallInput.PeerConnected -> if (s is CallState.Connecting) Transition(CallState.Connected(s.callId, s.plate)) else Transition(s)
+        CallInput.PeerConnected -> if (s is CallState.Connecting) Transition(CallState.Connected(s.callId, s.plate, s.vehicleName)) else Transition(s)
 
         CallInput.PeerFailed -> when (s) {
             is CallState.Connecting -> Transition(CallState.Ended("Koneksi audio gagal tersambung"), listOf(CallEffect.Send(SignalOut.end(s.callId)), CallEffect.ClosePeer))
@@ -74,7 +76,7 @@ object CallReducer {
             // sudah ada panggilan lain: tolak otomatis, jangan mengganggu panggilan berjalan
             s is CallState.Ringing || s is CallState.Connecting || s is CallState.Connected ->
                 if (activeId(s) == e.callId) Transition(s) else Transition(s, listOf(CallEffect.Send(SignalOut.reject(e.callId))))
-            else -> CallState.Ringing(e.callId, e.plate, e.reference, e.ringTimeoutSec).let { Transition(it, listOf(CallEffect.ShowIncoming(it))) }
+            else -> CallState.Ringing(e.callId, e.plate, e.reference, e.ringTimeoutSec, e.vehicleName).let { Transition(it, listOf(CallEffect.ShowIncoming(it))) }
         }
 
         is SignalEvent.Cancelled -> when {
@@ -99,6 +101,10 @@ object CallReducer {
             is CallState.Connecting, is CallState.Connected -> Transition(CallState.Ended("Panggilan terputus"), listOf(CallEffect.ClosePeer))
             else -> Transition(s)
         }
+
+        // Alert tidak mengubah status panggilan: hanya efek tampil/tutup
+        is SignalEvent.Alert -> Transition(s, listOf(CallEffect.ShowAlert(e)))
+        is SignalEvent.AlertDismiss -> Transition(s, listOf(CallEffect.DismissAlert(e.reportId)))
 
         SignalEvent.Hello, is SignalEvent.Unknown -> Transition(s)
     }
