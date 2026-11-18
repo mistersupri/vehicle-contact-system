@@ -140,23 +140,38 @@ CREATE TABLE IF NOT EXISTS abuse_events (
 CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 `);
 
+/** Migrasi ringan: tambah kolom bila belum ada (database lama tetap bisa dipakai). */
+function addColumn(table: string, column: string, ddl: string) {
+  if (!all<{ name: string }>(`PRAGMA table_info(${table})`).some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+}
+addColumn('vehicles', 'name', 'TEXT');                                          // nama kendaraan (mis. "Mobil Harian"), privat untuk pemilik
+addColumn('reports', 'urgent', 'INTEGER NOT NULL DEFAULT 0');                    // 1 = notifikasi mendesak (alert layar penuh)
+addColumn('call_settings', 'allow_urgent_alerts', 'INTEGER NOT NULL DEFAULT 1');
+
 // Kategori bawaan (PRD 5.4)
 const cats: [string, string, string][] = [
-  ['PARKING', 'Menghalangi parkir', 'Kendaraan menghalangi tempat parkir'],
-  ['ACCESS', 'Menghalangi akses', 'Kendaraan menghalangi jalan atau akses keluar-masuk'],
-  ['LIGHT', 'Lampu menyala', 'Lampu kendaraan tertinggal menyala'],
+  ['PARKING', 'Parkir Menghalangi', 'Kendaraan menghalangi tempat parkir'],
+  ['ACCESS', 'Akses Terblokir', 'Kendaraan menghalangi jalan atau akses keluar-masuk'],
+  ['LIGHT', 'Lampu Menyala', 'Lampu kendaraan tertinggal menyala'],
   ['EMERGENCY', 'Darurat', 'Kondisi mendesak terkait kendaraan'],
-  ['DAMAGE', 'Dugaan kerusakan', 'Informasi dugaan kerusakan atau insiden'],
+  ['DAMAGE', 'Kerusakan', 'Informasi dugaan kerusakan atau insiden'],
   ['OTHER', 'Lainnya', 'Keperluan lain'],
 ];
 cats.forEach(([code, label, desc], i) =>
   run('INSERT OR IGNORE INTO report_categories(code,label,description,active,sort) VALUES (?,?,?,1,?)', code, label, desc, i),
 );
 
+// Perbarui label bawaan lama pada database yang sudah ada (label yang sudah diubah admin tidak disentuh)
+for (const [code, oldLabel] of [['PARKING', 'Menghalangi parkir'], ['ACCESS', 'Menghalangi akses'], ['LIGHT', 'Lampu menyala'], ['DAMAGE', 'Dugaan kerusakan']] as const) {
+  const fresh = cats.find((c) => c[0] === code)![1];
+  run('UPDATE report_categories SET label=? WHERE code=? AND label=?', fresh, code, oldLabel);
+}
+
 export const DEFAULT_SETTINGS = {
   report_rate_limit: 5, // laporan per kendaraan
   report_rate_window_minutes: 10,
   call_cooldown_seconds: 30,
+  alert_cooldown_seconds: 120, // jeda antar notifikasi mendesak per kendaraan
   pstn_daily_limit_per_vehicle: 5,
   pstn_allowed_prefixes: '+62',
 };

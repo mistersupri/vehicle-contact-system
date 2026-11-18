@@ -6,8 +6,10 @@ import { AppError, notFound, paging, parse, requireUser } from '../lib/http.ts';
 import { decrypt, encrypt, hmac, isoPlus, randomToken, uuid } from '../lib/security.ts';
 import { enqueue, tick } from '../lib/notify.ts';
 import { senders, telegramConfigured, whatsappConfigured } from '../lib/providers.ts';
+import { mailConfigured } from '../lib/mail.ts';
 
-const mask = (c: string, d: string) => (c === 'WHATSAPP' ? d.replace(/\d(?=\d{3})/g, '•') : d.length > 4 ? `ID ••••${d.slice(-3)}` : '••••');
+const mask = (c: string, d: string) =>
+  c === 'WHATSAPP' ? d.replace(/\d(?=\d{3})/g, '•') : c === 'EMAIL' ? d.replace(/^(.{1,3}).*(@.+)$/, '$1***$2') : d.length > 4 ? `ID ••••${d.slice(-3)}` : '••••';
 
 function upsertChannel(userId: string, channel: string, destination: string, verified: boolean, ref: string | null = null) {
   const ex = get<any>('SELECT id FROM notification_channels WHERE user_id=? AND channel=?', userId, channel);
@@ -33,7 +35,7 @@ export default async function notificationRoutes(app: FastifyInstance) {
     return {
       channels: rows.map((r) => ({ id: r.id, channel: r.channel, destination_masked: mask(r.channel, decrypt(r.destination_encrypted)), verified: !!r.verified, enabled: !!r.enabled, updated_at: r.updated_at })),
       telegram_link_pending: !!pending,
-      providers: { telegram_live: telegramConfigured(), whatsapp_live: whatsappConfigured(), telegram_bot_username: config.telegramBotUsername || null, demo_mode: !isProd && (!telegramConfigured() || !whatsappConfigured()) },
+      providers: { telegram_live: telegramConfigured(), whatsapp_live: whatsappConfigured(), email_live: mailConfigured(), telegram_bot_username: config.telegramBotUsername || null, demo_mode: !isProd && (!telegramConfigured() || !whatsappConfigured()) },
     };
   });
 
@@ -89,6 +91,17 @@ export default async function notificationRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
+  // Email = alamat akun pemilik (sudah terverifikasi). Dinyalakan/dimatikan langsung.
+  app.put('/notifications/email', async (req) => {
+    const u = requireUser(req);
+    const { enabled } = parse(z.object({ enabled: z.boolean() }), req.body);
+    const email = get<any>('SELECT email FROM users WHERE id=?', u.id).email as string;
+    upsertChannel(u.id, 'EMAIL', email, true);
+    run('UPDATE notification_channels SET enabled=?, updated_at=? WHERE user_id=? AND channel=\'EMAIL\'', enabled ? 1 : 0, now(), u.id);
+    audit(u.id, 'notification.email_toggled', 'user', u.id, { enabled });
+    return { ok: true };
+  });
+
   app.patch('/notifications/channels/:id', async (req) => {
     const u = requireUser(req);
     const { enabled } = parse(z.object({ enabled: z.boolean() }), req.body);
@@ -101,7 +114,7 @@ export default async function notificationRoutes(app: FastifyInstance) {
 
   app.post('/notifications/test', { config: { rateLimit: { max: 5, timeWindow: '5 minutes' } } }, async (req) => {
     const u = requireUser(req);
-    const { channel } = parse(z.object({ channel: z.enum(['WHATSAPP', 'TELEGRAM']) }), req.body);
+    const { channel } = parse(z.object({ channel: z.enum(['WHATSAPP', 'TELEGRAM', 'EMAIL']) }), req.body);
     const ch = get<any>('SELECT * FROM notification_channels WHERE user_id=? AND channel=? AND verified=1', u.id, channel);
     if (!ch) throw new AppError(400, 'NOT_CONNECTED', 'Kanal belum terhubung');
     enqueue('test', { owner_id: u.id });

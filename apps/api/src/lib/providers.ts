@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
-import { config } from '../config.ts';
+import { config, isProd } from '../config.ts';
+import { mailConfigured, sendMail } from './mail.ts';
 
 /** Hasil pengiriman: `permanent` = jangan retry. */
 export class SendError extends Error {
@@ -41,7 +42,19 @@ const whatsapp: Sender = {
   },
 };
 
-export const senders: Record<string, Sender> = { TELEGRAM: telegram, WHATSAPP: whatsapp };
+const email: Sender = {
+  name: 'email', simulated: !mailConfigured(),
+  async send(to, text) {
+    const subject = text.split('\n')[0].replace(/^[^\p{L}\p{N}]+/u, '').slice(0, 120) || 'Vehicle Contact';
+    if (!mailConfigured()) {
+      if (isProd) throw new SendError('SMTP_NOT_CONFIGURED', true);
+      console.log(`[email:simulasi] -> ${to.slice(0, 3)}***: ${subject}`); return `sim-${crypto.randomUUID()}`;
+    }
+    if (!(await sendMail(to, subject, text))) throw new SendError('SMTP_FAILED');
+    return `mail-${crypto.randomUUID()}`;
+  },
+};
+export const senders: Record<string, Sender> = { TELEGRAM: telegram, WHATSAPP: whatsapp, EMAIL: email };
 
 export function verifyMetaSignature(raw: Buffer | string, header: string | undefined): boolean {
   if (!config.whatsappAppSecret || !header?.startsWith('sha256=')) return false;

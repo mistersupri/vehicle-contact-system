@@ -142,7 +142,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     const admin = requireAdmin(req, ['SUPER_ADMIN', 'ADMIN']);
     const b = parse(z.object({
       report_rate_limit: z.number().int().min(1).max(100), report_rate_window_minutes: z.number().int().min(1).max(1440),
-      call_cooldown_seconds: z.number().int().min(0).max(3600), pstn_daily_limit_per_vehicle: z.number().int().min(0).max(100),
+      call_cooldown_seconds: z.number().int().min(0).max(3600), alert_cooldown_seconds: z.number().int().min(0).max(3600), pstn_daily_limit_per_vehicle: z.number().int().min(0).max(100),
       pstn_allowed_prefixes: z.string().max(200),
     }).partial(), req.body);
     for (const [k, v] of Object.entries(b)) if (v !== undefined) setSetting(k as SettingKey, v);

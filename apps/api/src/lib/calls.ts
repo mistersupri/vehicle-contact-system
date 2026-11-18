@@ -11,7 +11,7 @@ export const ACTIVE: CallStatus[] = ['RINGING', 'ACCEPTED'];
 export interface CallSettings {
   user_id: string; webrtc_enabled: number; pstn_enabled: number; call_availability: 'ONLINE' | 'ALWAYS' | 'OFFLINE';
   max_call_duration_seconds: number; ring_timeout_seconds: number; allow_anonymous_webrtc: number; quiet_hours: string | null;
-  owner_phone_encrypted: string | null;
+  owner_phone_encrypted: string | null; allow_urgent_alerts: number;
 }
 export function settingsFor(userId: string): CallSettings {
   let s = get<CallSettings>('SELECT * FROM call_settings WHERE user_id=?', userId);
@@ -52,7 +52,7 @@ const clearTimer = (id: string) => { const t = timers.get(id); if (t) clearTimeo
 
 export interface CallRow { id: string; public_reference: string; vehicle_id: string; owner_id: string; call_type: string; status: CallStatus; caller_session_hash: string | null; started_at: string; answered_at: string | null }
 
-export function createWebrtcCall(vehicle: { id: string; user_id: string; plate_number: string }, callerKey: string): CallRow {
+export function createWebrtcCall(vehicle: { id: string; user_id: string; plate_number: string; name?: string | null }, callerKey: string): CallRow {
   const unavailable = webrtcUnavailableReason(vehicle.user_id);
   if (unavailable) throw new AppError(409, unavailable, 'Pemilik tidak dapat dihubungi melalui panggilan saat ini', { fallback: 'message' });
   const cooldown = getSetting('call_cooldown_seconds');
@@ -71,7 +71,7 @@ export function createWebrtcCall(vehicle: { id: string; user_id: string; plate_n
   });
 
   const s = settingsFor(vehicle.user_id);
-  sendToOwner(vehicle.user_id, { type: 'call:invite', call_id: call.id, reference: call.public_reference, plate: vehicle.plate_number, vehicle_id: vehicle.id, started_at: call.started_at, ring_timeout: s.ring_timeout_seconds });
+  sendToOwner(vehicle.user_id, { type: 'call:invite', call_id: call.id, reference: call.public_reference, plate: vehicle.plate_number, vehicle_name: vehicle.name ?? null, vehicle_id: vehicle.id, started_at: call.started_at, ring_timeout: s.ring_timeout_seconds });
   timers.set(call.id, setTimeout(() => finish(call.id, 'MISSED', 'timeout'), s.ring_timeout_seconds * 1000));
   return call;
 }
@@ -131,7 +131,7 @@ export function ownedCall(callId: string, ownerId: string): CallRow {
   return c;
 }
 export const pendingInvites = (ownerId: string) =>
-  all<any>(`SELECT c.id AS call_id, c.public_reference AS reference, c.started_at, v.plate_number AS plate, v.id AS vehicle_id
+  all<any>(`SELECT c.id AS call_id, c.public_reference AS reference, c.started_at, v.plate_number AS plate, v.name AS vehicle_name, v.id AS vehicle_id
             FROM calls c JOIN vehicles v ON v.id=c.vehicle_id WHERE c.owner_id=? AND c.status='RINGING' AND c.call_type='WEBRTC'`, ownerId);
 
 /** Bersihkan panggilan yatim setelah restart server. */
