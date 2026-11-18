@@ -6,6 +6,9 @@ Hubungi pemilik kendaraan lewat **QR Code** — tanpa membuka nomor pribadi. Pen
 * **API** (`apps/api`): Node 22 + Fastify, REST `/api/v1`, signaling WebSocket `/api/v1/call-signaling`, worker notifikasi (outbox + retry).
 * Desain: monokrom hangat, kartu membulat besar, aksen mint & koral, tab pil — terinspirasi referensi yang Anda berikan.
 
+## Tampilan
+86 tangkapan layar semua halaman dan kondisinya (desktop & mobile): **[docs/screenshots](docs/screenshots/README.md)**.
+
 ## Menjalankan (pengembangan)
 Butuh Node ≥ 22.13.
 ```bash
