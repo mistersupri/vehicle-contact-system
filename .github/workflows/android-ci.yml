@@ -33,6 +33,32 @@ jobs:
         run: chmod +x gradlew && ./gradlew --no-daemon :core:test
       - name: Build APK debug
         run: ./gradlew --no-daemon :app:assembleDebug -PversionName=0.0.0-ci -PversionCode=1
+      - name: Verifikasi isi APK (izin, service, layar kunci, WebRTC)
+        run: |
+          set -euo pipefail
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          aapt2="$ANDROID_HOME/build-tools/35.0.0/aapt2"
+          "$aapt2" dump badging "$apk" | grep -E "^package:|sdkVersion|targetSdkVersion|application-label:" || true
+          "$aapt2" dump permissions "$apk" > perms.txt; cat perms.txt
+          for p in INTERNET RECORD_AUDIO POST_NOTIFICATIONS USE_FULL_SCREEN_INTENT FOREGROUND_SERVICE FOREGROUND_SERVICE_SPECIAL_USE FOREGROUND_SERVICE_MICROPHONE RECEIVE_BOOT_COMPLETED REQUEST_IGNORE_BATTERY_OPTIMIZATIONS WAKE_LOCK; do
+            grep -q "android.permission.$p" perms.txt || { echo "::error::izin $p tidak ada di APK"; exit 1; }
+          done
+          "$aapt2" dump xmltree --file AndroidManifest.xml "$apk" > manifest.txt
+          for k in showWhenLocked turnScreenOn foregroundServiceType "call.CallService" "call.CallActivity" "call.BootReceiver"; do
+            grep -q "$k" manifest.txt || { echo "::error::'$k' tidak ada di manifest"; exit 1; }
+          done
+          unzip -l "$apk" | grep -q "libjingle_peerconnection_so.so" || { echo "::error::pustaka native WebRTC tidak ada di APK"; exit 1; }
+          unzip -l "$apk" | grep -E "classes[0-9]*\.dex|libjingle" | head
+          ls -la "$apk"
+      - name: Android Lint (informasi)
+        continue-on-error: true
+        run: |
+          ./gradlew --no-daemon :app:lintDebug || true
+          f=app/build/reports/lint-results-debug.xml
+          if [ -f "$f" ]; then
+            echo "Lint: error=$(grep -c 'severity="Error"' $f) warning=$(grep -c 'severity="Warning"' $f)"
+            grep -B1 -A3 'severity="Error"' $f | head -60
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: apk-debug
