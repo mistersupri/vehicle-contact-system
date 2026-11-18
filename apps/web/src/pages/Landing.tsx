@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { ArrowRight, BellRing, Camera, Check, EyeOff, Mic, PhoneCall, QrCode, ScanLine, ShieldCheck, X } from 'lucide-react';
 import { Logo } from '../components/Logo';
 import { Phone } from '../components/Phone';
@@ -67,8 +67,17 @@ const steps = [
   { icon: BellRing, t: 'Anda langsung tahu', d: 'Laporan dan panggilan masuk ke dashboard, WhatsApp, dan Telegram Anda.' },
 ];
 
+/** Aplikasi terpasang (APK Capacitor / WebView Android / PWA standalone): bukan pengunjung situs. */
+const isInstalledApp = () => {
+  try {
+    return !!(window as any).Capacitor?.isNativePlatform?.() || /; wv\)/.test(navigator.userAgent) || matchMedia('(display-mode: standalone)').matches;
+  } catch { return false; }
+};
+
 export default function Landing() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  // Panggilan masuk hanya berdering bila soket tersambung (dashboard). Di aplikasi terpasang, langsung ke dashboard.
+  if (!loading && user && isInstalledApp()) return <Navigate to={user.is_admin ? '/admin' : '/app'} replace />;
   return (
     <div className="min-h-dvh overflow-x-hidden">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
