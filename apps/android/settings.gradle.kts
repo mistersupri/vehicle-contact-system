@@ -7,7 +7,10 @@ dependencyResolutionManagement {
 }
 rootProject.name = "vehicle-contact-android"
 include(":core")
-// Modul Android hanya disertakan bila SDK tersedia (ANDROID_HOME) — modul :core bisa dibangun & diuji tanpa SDK.
-if (System.getenv("ANDROID_HOME") != null || System.getenv("ANDROID_SDK_ROOT") != null || file("local.properties").exists()) {
+// Dengan Android SDK (CI / mesin pengembang Android): sertakan :app dan pakai build root yang mendeklarasikan plugin Android.
+// Tanpa SDK: hanya :core (JVM murni) sehingga bisa dibangun & diuji di mana saja.
+val hasAndroidSdk = System.getenv("ANDROID_HOME") != null || System.getenv("ANDROID_SDK_ROOT") != null || file("local.properties").exists()
+if (hasAndroidSdk) {
+    rootProject.buildFileName = "build.android.gradle.kts"
     include(":app")
 }
