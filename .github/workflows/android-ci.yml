@@ -1,0 +1,48 @@
+name: Android CI
+
+# Kompilasi + uji aplikasi Android native di setiap push ke branch mana pun yang mengubah apps/android.
+# Tidak membuat rilis (rilis hanya dari release.yml di main).
+on:
+  push:
+    paths: ['apps/android/**', '.github/workflows/android-ci.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Uji :core + build APK debug
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Siapkan Android SDK (sudah terpasang di runner)
+        run: |
+          sdkm=$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)
+          yes | "$sdkm" --licenses > /dev/null || true
+          "$sdkm" "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Uji :core (JVM)
+        run: chmod +x gradlew && ./gradlew --no-daemon :core:test
+      - name: Build APK debug
+        run: ./gradlew --no-daemon :app:assembleDebug -PversionName=0.0.0-ci -PversionCode=1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk-debug
+          path: apps/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+      - name: Laporan uji bila gagal
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: laporan-uji
+          path: |
+            apps/android/core/build/reports/tests
+            apps/android/app/build/reports
